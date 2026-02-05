@@ -1,0 +1,80 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Logo Tomo - Chữ T đơn giản với gradient -->
+    <group
+        android:translateX="54"
+        android:translateY="54">
+        
+        <!-- Phần ngang của T (trên) -->
+        <path
+            android:pathData="M-25,-22 L25,-22 L25,-12 L-25,-12 Z"
+            android:fillColor="#FFFFFF"/>
+        
+        <!-- Phần dọc của T (giữa) -->
+        <path
+            android:pathData="M-6,-12 L6,-12 L6,25 L-6,25 Z"
+            android:fillColor="#FFFFFF"/>
+        
+        <!-- Điểm trang trí bên trái -->
+        <path
+            android:pathData="M-28,-5 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+            android:fillColor="#42A5F5"/>
+        
+        <path
+            android:pathData="M-28,5 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+            android:fillColor="#42A5F5"/>
+        
+        <path
+            android:pathData="M-28,15 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+            android:fillColor="#42A5F5"/>
+        
+        <!-- Đường nối bên trái -->
+        <path
+            android:pathData="M-6,-5 L-25,-5"
+            android:strokeColor="#42A5F5"
+            android:strokeWidth="2"/>
+        
+        <path
+            android:pathData="M-6,5 L-25,5"
+            android:strokeColor="#42A5F5"
+            android:strokeWidth="2"/>
+        
+        <path
+            android:pathData="M-6,15 L-25,15"
+            android:strokeColor="#42A5F5"
+            android:strokeWidth="2"/>
+        
+        <!-- Điểm trang trí bên phải -->
+        <path
+            android:pathData="M22,-5 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+            android:fillColor="#9575CD"/>
+        
+        <path
+            android:pathData="M22,5 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+            android:fillColor="#9575CD"/>
+        
+        <path
+            android:pathData="M22,15 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0"
+            android:fillColor="#9575CD"/>
+        
+        <!-- Đường nối bên phải -->
+        <path
+            android:pathData="M6,-5 L25,-5"
+            android:strokeColor="#9575CD"
+            android:strokeWidth="2"/>
+        
+        <path
+            android:pathData="M6,5 L25,5"
+            android:strokeColor="#9575CD"
+            android:strokeWidth="2"/>
+        
+        <path
+            android:pathData="M6,15 L25,15"
+            android:strokeColor="#9575CD"
+            android:strokeWidth="2"/>
+    </group>
+</vector>
