@@ -13,3 +13,24 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Bảo mật - Không commit các file nhạy cảm
+php_backend/config/config.php
+php_backend/config/.env
+*.env
+.env.local
+.env.production
+
+# Bảo mật - Không commit file uploads
+php_backend/uploads/**/*
+!php_backend/uploads/.gitkeep
+!php_backend/uploads/attachments/.gitkeep
+!php_backend/uploads/documents/.gitkeep
+
+# Logs
+*.log
+php_backend/logs/
+.kotlin/errors/
+
+# Backup files (tùy chọn - nếu muốn backup riêng)
+# php_backend/database/myapp_db_backup.sql

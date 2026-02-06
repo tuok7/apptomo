@@ -10,12 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,12 +38,13 @@ fun GroupDetailScreen(
     val members by viewModel.members.collectAsState()
     val assignments by viewModel.assignments.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var showGroupInfo by remember { mutableStateOf(false) }
+    var showBackgroundPicker by remember { mutableStateOf(false) }
+    var selectedBackground by remember { mutableIntStateOf(0) }
     var hasError by remember { mutableStateOf(false) }
     
     LaunchedEffect(groupId) {
         try {
-            // Find and select the group from the groups list
             val group = viewModel.groups.value.find { it.id == groupId }
             if (group != null) {
                 viewModel.selectGroup(group)
@@ -60,101 +59,105 @@ fun GroupDetailScreen(
         }
     }
     
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(selectedGroup?.name ?: "Chi tiết nhóm") },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+    if (showGroupInfo) {
+        GroupInfoScreen(
+            groupName = selectedGroup?.name ?: "",
+            members = members,
+            assignments = assignments,
+            isLoading = uiState.isLoading,
+            onBackClick = { showGroupInfo = false },
+            onAddMemberClick = onAddMemberClick,
+            onAddAssignmentClick = onAddAssignmentClick,
+            onAssignmentClick = onAssignmentClick
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Column {
+                            Text(
+                                text = selectedGroup?.name ?: "Nhóm chat",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = "${members.size} thành viên",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showBackgroundPicker = true }) {
+                            Icon(Icons.Default.Palette, contentDescription = "Đổi nền")
+                        }
+                        IconButton(onClick = { showGroupInfo = true }) {
+                            Icon(Icons.Default.Info, contentDescription = "Thông tin nhóm")
+                        }
                     }
-                }
-            )
-        },
-        floatingActionButton = {
-            if (selectedGroup != null && !hasError) {
-                if (selectedTab != 2) {
-                    FloatingActionButton(
-                        onClick = {
-                            try {
-                                if (selectedTab == 0) onAddMemberClick()
-                                else onAddAssignmentClick()
-                            } catch (e: Exception) {
-                                android.util.Log.e("GroupDetailScreen", "FAB error: ${e.message}", e)
+                )
+            }
+        ) { padding ->
+            if (hasError || selectedGroup == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator()
+                            Text("Đang tải...")
+                        } else {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                "Không thể tải thông tin nhóm",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                "Vui lòng thử lại sau",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(onClick = onBackClick) {
+                                Text("Quay lại")
                             }
                         }
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Thêm")
                     }
                 }
-            }
-        }
-    ) { padding ->
-        if (hasError || selectedGroup == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator()
-                        Text("Đang tải...")
-                    } else {
-                        Icon(
-                            Icons.Default.Error,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            "Không thể tải thông tin nhóm",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            "Vui lòng thử lại sau",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Button(onClick = onBackClick) {
-                            Text("Quay lại")
-                        }
-                    }
+            } else {
+                Box(modifier = Modifier.padding(padding)) {
+                    GroupChatContent(
+                        groupName = selectedGroup?.name ?: "",
+                        backgroundIndex = selectedBackground
+                    )
                 }
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
-                TabRow(selectedTabIndex = selectedTab) {
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        text = { Text("Thành viên (${members.size})") }
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        text = { Text("Bài tập (${assignments.size})") }
-                    )
-                    Tab(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        text = { Text("Nhắn tin") }
-                    )
-                }
-                
-                when (selectedTab) {
-                    0 -> MembersList(members, uiState.isLoading)
-                    1 -> AssignmentsList(assignments, uiState.isLoading, onAssignmentClick)
-                    2 -> MessagesTab(selectedGroup?.name ?: "")
-                }
+            
+            // Background picker dialog
+            if (showBackgroundPicker) {
+                BackgroundPickerDialog(
+                    currentBackground = selectedBackground,
+                    onBackgroundSelected = { 
+                        selectedBackground = it
+                        showBackgroundPicker = false
+                    },
+                    onDismiss = { showBackgroundPicker = false }
+                )
             }
         }
     }
@@ -304,35 +307,76 @@ fun getPriorityText(priority: String): String = when (priority.lowercase()) {
 }
 
 @Composable
-fun MessagesTab(groupName: String) {
+fun GroupChatContent(groupName: String, backgroundIndex: Int = 0) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
     val currentUserName = remember { userPreferences.getFullName().ifEmpty { "Bạn" } }
     
     var messageText by remember { mutableStateOf("") }
     var messages by remember { 
-        mutableStateOf(listOf(
-            MessageItem(1, "van quyen", "Chào mọi người!", "11:20", false),
-            MessageItem(2, currentUserName, "Xin chào!", "11:21", true),
-            MessageItem(3, "van quyen", "Hôm nay chúng ta làm bài tập gì?", "11:22", false),
-            MessageItem(4, currentUserName, "Làm bài tập về Android nhé", "11:23", true)
-        ))
+        mutableStateOf(listOf<MessageItem>())
+    }
+    
+    val backgroundColor = when (backgroundIndex) {
+        0 -> Color(0xFFF5F5F5) // Xám nhạt (mặc định)
+        1 -> Color(0xFFE3F2FD) // Xanh dương nhạt
+        2 -> Color(0xFFFCE4EC) // Hồng nhạt
+        3 -> Color(0xFFF1F8E9) // Xanh lá nhạt
+        4 -> Color(0xFFFFF3E0) // Cam nhạt
+        5 -> Color(0xFFE8EAF6) // Tím nhạt
+        6 -> Color(0xFFE0F2F1) // Xanh ngọc nhạt
+        7 -> Color(0xFFFFF9C4) // Vàng nhạt
+        else -> Color(0xFFF5F5F5)
     }
     
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
         // Messages list
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .background(Color(0xFFF5F5F5)),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .background(backgroundColor)
         ) {
-            items(messages, key = { it.id }) { message ->
-                MessageBubble(message)
+            if (messages.isEmpty()) {
+                // Empty state
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Chưa có tin nhắn nào",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Hãy bắt đầu cuộc trò chuyện với nhóm",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(messages, key = { it.id }) { message ->
+                        MessageBubble(message)
+                    }
+                }
             }
         }
         
@@ -362,9 +406,9 @@ fun MessagesTab(groupName: String) {
                     onClick = {
                         if (messageText.isNotBlank()) {
                             val newMessage = MessageItem(
-                                id = messages.size + 1L,
+                                id = System.currentTimeMillis(),
                                 senderName = currentUserName,
-                                content = messageText,
+                                content = messageText.trim(),
                                 time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
                                 isCurrentUser = true
                             )
@@ -373,23 +417,303 @@ fun MessagesTab(groupName: String) {
                         }
                     },
                     enabled = messageText.isNotBlank(),
+                    modifier = Modifier.size(48.dp),
                     colors = IconButtonDefaults.iconButtonColors(
                         containerColor = if (messageText.isNotBlank()) 
                             MaterialTheme.colorScheme.primary 
                         else 
-                            MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Gửi",
-                        tint = if (messageText.isNotBlank()) 
+                            MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (messageText.isNotBlank()) 
                             Color.White 
                         else 
                             MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Gửi"
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun BackgroundPickerDialog(
+    currentBackground: Int,
+    onBackgroundSelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val backgrounds = listOf(
+        0 to "Xám nhạt" to Color(0xFFF5F5F5),
+        1 to "Xanh dương" to Color(0xFFE3F2FD),
+        2 to "Hồng" to Color(0xFFFCE4EC),
+        3 to "Xanh lá" to Color(0xFFF1F8E9),
+        4 to "Cam" to Color(0xFFFFF3E0),
+        5 to "Tím" to Color(0xFFE8EAF6),
+        6 to "Xanh ngọc" to Color(0xFFE0F2F1),
+        7 to "Vàng" to Color(0xFFFFF9C4)
+    )
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Chọn nền chat",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+        },
+        text = {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(backgrounds) { (indexAndName, color) ->
+                    val (index, name) = indexAndName
+                    Surface(
+                        onClick = { onBackgroundSelected(index) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = color,
+                        border = if (currentBackground == index) {
+                            androidx.compose.foundation.BorderStroke(
+                                3.dp,
+                                MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color.Gray.copy(alpha = 0.3f)
+                            )
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (currentBackground == index) {
+                                    androidx.compose.ui.text.font.FontWeight.Bold
+                                } else {
+                                    androidx.compose.ui.text.font.FontWeight.Normal
+                                }
+                            )
+                            if (currentBackground == index) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = "Đã chọn",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GroupInfoScreen(
+    groupName: String,
+    members: List<MemberData>,
+    assignments: List<AssignmentData>,
+    isLoading: Boolean,
+    onBackClick: () -> Unit,
+    onAddMemberClick: () -> Unit,
+    onAddAssignmentClick: () -> Unit,
+    onAssignmentClick: (Long) -> Unit
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var showInviteDialog by remember { mutableStateOf(false) }
+    var showQRDialog by remember { mutableStateOf(false) }
+    var showPendingRequests by remember { mutableStateOf(false) }
+    
+    // Mock pending requests
+    val pendingRequests = remember {
+        mutableStateListOf(
+            PendingRequest(1, "Nguyễn Văn A", "nguyenvana@gmail.com"),
+            PendingRequest(2, "Trần Thị B", "tranthib@gmail.com")
+        )
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Thông tin nhóm") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                    }
+                },
+                actions = {
+                    // Pending requests badge
+                    if (pendingRequests.isNotEmpty()) {
+                        BadgedBox(
+                            badge = {
+                                Badge {
+                                    Text("${pendingRequests.size}")
+                                }
+                            }
+                        ) {
+                            IconButton(onClick = { showPendingRequests = true }) {
+                                Icon(Icons.Default.PersonAdd, contentDescription = "Yêu cầu chờ duyệt")
+                            }
+                        }
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    if (selectedTab == 0) onAddMemberClick()
+                    else onAddAssignmentClick()
+                }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Thêm")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // Group header
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primary,
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Group,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = Color.White
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = groupName,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                    Text(
+                        text = "${members.size} thành viên",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Invite buttons
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showInviteDialog = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.Default.Link,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Link mời")
+                        }
+                        
+                        OutlinedButton(
+                            onClick = { showQRDialog = true },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.Default.QrCode,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("QR Code")
+                        }
+                    }
+                }
+            }
+            
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("Thành viên (${members.size})") }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Bài tập (${assignments.size})") }
+                )
+            }
+            
+            when (selectedTab) {
+                0 -> MembersList(members, isLoading)
+                1 -> AssignmentsList(assignments, isLoading, onAssignmentClick)
+            }
+        }
+        
+        // Invite link dialog
+        if (showInviteDialog) {
+            InviteLinkDialog(
+                groupName = groupName,
+                onDismiss = { showInviteDialog = false }
+            )
+        }
+        
+        // QR code dialog
+        if (showQRDialog) {
+            QRCodeDialog(
+                groupName = groupName,
+                onDismiss = { showQRDialog = false }
+            )
+        }
+        
+        // Pending requests dialog
+        if (showPendingRequests) {
+            PendingRequestsDialog(
+                requests = pendingRequests,
+                onApprove = { request ->
+                    pendingRequests.remove(request)
+                    // TODO: Add to group members
+                },
+                onReject = { request ->
+                    pendingRequests.remove(request)
+                },
+                onDismiss = { showPendingRequests = false }
+            )
         }
     }
 }
@@ -492,3 +816,342 @@ data class MessageItem(
     val time: String,
     val isCurrentUser: Boolean
 )
+
+data class PendingRequest(
+    val id: Long,
+    val name: String,
+    val email: String
+)
+
+@Composable
+fun InviteLinkDialog(
+    groupName: String,
+    onDismiss: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val inviteLink = "https://myapp.com/join/group/${groupName.hashCode()}"
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.Link,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = "Link mời nhóm",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Chia sẻ link này để mời người khác vào nhóm",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = inviteLink,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 2
+                        )
+                        IconButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clip = android.content.ClipData.newPlainText("invite_link", inviteLink)
+                                clipboard.setPrimaryClip(clip)
+                                android.widget.Toast.makeText(context, "Đã sao chép link", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = "Sao chép"
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "⚠️ Người tham gia cần được trưởng nhóm duyệt",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val shareIntent = android.content.Intent().apply {
+                        action = android.content.Intent.ACTION_SEND
+                        putExtra(android.content.Intent.EXTRA_TEXT, "Tham gia nhóm $groupName: $inviteLink")
+                        type = "text/plain"
+                    }
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Chia sẻ link"))
+                }
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Chia sẻ")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+@Composable
+fun QRCodeDialog(
+    groupName: String,
+    onDismiss: () -> Unit
+) {
+    val inviteCode = groupName.hashCode().toString()
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.QrCode,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = "QR Code nhóm",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Quét mã QR để tham gia nhóm",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // QR Code placeholder
+                Surface(
+                    modifier = Modifier.size(200.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.QrCode,
+                                contentDescription = null,
+                                modifier = Modifier.size(120.dp),
+                                tint = Color.Black
+                            )
+                            Text(
+                                text = "Mã: $inviteCode",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Black
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "⚠️ Người tham gia cần được trưởng nhóm duyệt",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+@Composable
+fun PendingRequestsDialog(
+    requests: List<PendingRequest>,
+    onApprove: (PendingRequest) -> Unit,
+    onReject: (PendingRequest) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.PersonAdd,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text(
+                text = "Yêu cầu tham gia (${requests.size})",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+        },
+        text = {
+            if (requests.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Không có yêu cầu nào",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(requests, key = { it.id }) { request ->
+                        PendingRequestCard(
+                            request = request,
+                            onApprove = { onApprove(request) },
+                            onReject = { onReject(request) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+@Composable
+fun PendingRequestCard(
+    request: PendingRequest,
+    onApprove: () -> Unit,
+    onReject: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = request.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+                Text(
+                    text = request.email,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(
+                    onClick = onApprove,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color(0xFF4CAF50)
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Duyệt",
+                        tint = Color.White
+                    )
+                }
+                
+                IconButton(
+                    onClick = onReject,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Từ chối",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    }
+}

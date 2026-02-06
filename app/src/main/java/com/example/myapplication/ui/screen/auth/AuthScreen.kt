@@ -542,7 +542,7 @@ fun RegisterContent(
         ModernTextField(
             value = email,
             onValueChange = onEmailChange,
-            placeholder = "Nhập emial hoặc số điện thoại",
+            placeholder = "Nhập email hoặc số điện thoại",
             keyboardType = KeyboardType.Text,
             isDark = false
         )
