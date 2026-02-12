@@ -1,5 +1,6 @@
 package com.example.myapplication.ui.screen.group
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,9 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
 import com.example.myapplication.data.api.AssignmentData
 import com.example.myapplication.data.api.MemberData
 import com.example.myapplication.ui.viewmodel.GroupViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -143,6 +146,7 @@ fun GroupDetailScreen(
                 Box(modifier = Modifier.padding(padding)) {
                     GroupChatContent(
                         groupName = selectedGroup?.name ?: "",
+                        groupId = groupId,
                         backgroundIndex = selectedBackground
                     )
                 }
@@ -307,25 +311,83 @@ fun getPriorityText(priority: String): String = when (priority.lowercase()) {
 }
 
 @Composable
-fun GroupChatContent(groupName: String, backgroundIndex: Int = 0) {
+fun GroupChatContent(groupName: String, groupId: Long, backgroundIndex: Int = 0) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
     val currentUserName = remember { userPreferences.getFullName().ifEmpty { "Bạn" } }
+    val currentUserId = remember { userPreferences.getUserId() }
+    
+    // Database
+    val database = remember { com.example.myapplication.data.database.AppDatabase.getDatabase(context) }
+    val messageDao = remember { database.groupMessageDao() }
     
     var messageText by remember { mutableStateOf("") }
-    var messages by remember { 
-        mutableStateOf(listOf<MessageItem>())
+    var showAttachMenu by remember { mutableStateOf(false) }
+    val messages = remember { mutableStateListOf<MessageItem>() }
+    val scope = rememberCoroutineScope()
+    
+    // Load messages from database
+    LaunchedEffect(groupId) {
+        messageDao.getMessagesByGroup(groupId).collect { dbMessages ->
+            messages.clear()
+            messages.addAll(dbMessages.map { msg ->
+                MessageItem(
+                    id = msg.id,
+                    senderName = msg.senderName,
+                    content = msg.content,
+                    time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(msg.timestamp)),
+                    isCurrentUser = msg.senderId == currentUserId,
+                    messageType = msg.messageType,
+                    fileName = msg.fileName,
+                    fileUrl = msg.fileUrl
+                )
+            })
+        }
+    }
+    
+    // File picker launcher
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            val fileName = getFileName(context, uri)
+            scope.launch {
+                try {
+                    val dbMessage = com.example.myapplication.data.model.GroupMessage(
+                        groupId = groupId,
+                        senderId = currentUserId,
+                        senderName = currentUserName,
+                        content = "Đã gửi file",
+                        messageType = "file",
+                        fileName = fileName,
+                        fileUrl = uri.toString()
+                    )
+                    messageDao.insertMessage(dbMessage)
+                    android.widget.Toast.makeText(
+                        context,
+                        "Đã gửi file: $fileName",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Lỗi gửi file: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
     
     val backgroundColor = when (backgroundIndex) {
-        0 -> Color(0xFFF5F5F5) // Xám nhạt (mặc định)
-        1 -> Color(0xFFE3F2FD) // Xanh dương nhạt
-        2 -> Color(0xFFFCE4EC) // Hồng nhạt
-        3 -> Color(0xFFF1F8E9) // Xanh lá nhạt
-        4 -> Color(0xFFFFF3E0) // Cam nhạt
-        5 -> Color(0xFFE8EAF6) // Tím nhạt
-        6 -> Color(0xFFE0F2F1) // Xanh ngọc nhạt
-        7 -> Color(0xFFFFF9C4) // Vàng nhạt
+        0 -> Color(0xFFF5F5F5)
+        1 -> Color(0xFFE3F2FD)
+        2 -> Color(0xFFFCE4EC)
+        3 -> Color(0xFFF1F8E9)
+        4 -> Color(0xFFFFF3E0)
+        5 -> Color(0xFFE8EAF6)
+        6 -> Color(0xFFE0F2F1)
+        7 -> Color(0xFFFFF9C4)
         else -> Color(0xFFF5F5F5)
     }
     
@@ -340,7 +402,6 @@ fun GroupChatContent(groupName: String, backgroundIndex: Int = 0) {
                 .background(backgroundColor)
         ) {
             if (messages.isEmpty()) {
-                // Empty state
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -386,57 +447,178 @@ fun GroupChatContent(groupName: String, backgroundIndex: Int = 0) {
             shadowElevation = 8.dp,
             color = MaterialTheme.colorScheme.surface
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = messageText,
-                    onValueChange = { messageText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Nhập tin nhắn...") },
-                    shape = RoundedCornerShape(24.dp),
-                    maxLines = 3
-                )
-                
-                IconButton(
-                    onClick = {
-                        if (messageText.isNotBlank()) {
-                            val newMessage = MessageItem(
-                                id = System.currentTimeMillis(),
-                                senderName = currentUserName,
-                                content = messageText.trim(),
-                                time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                                isCurrentUser = true
+            Column {
+                // Attach menu
+                AnimatedVisibility(visible = showAttachMenu) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            AttachButton(
+                                icon = Icons.Default.InsertDriveFile,
+                                label = "Tài liệu",
+                                onClick = {
+                                    filePickerLauncher.launch("*/*")
+                                    showAttachMenu = false
+                                }
                             )
-                            messages = messages + newMessage
-                            messageText = ""
+                            AttachButton(
+                                icon = Icons.Default.Image,
+                                label = "Hình ảnh",
+                                onClick = {
+                                    filePickerLauncher.launch("image/*")
+                                    showAttachMenu = false
+                                }
+                            )
+                            AttachButton(
+                                icon = Icons.Default.VideoLibrary,
+                                label = "Video",
+                                onClick = {
+                                    filePickerLauncher.launch("video/*")
+                                    showAttachMenu = false
+                                }
+                            )
                         }
-                    },
-                    enabled = messageText.isNotBlank(),
-                    modifier = Modifier.size(48.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (messageText.isNotBlank()) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (messageText.isNotBlank()) 
-                            Color.White 
-                        else 
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Gửi"
+                    IconButton(
+                        onClick = { showAttachMenu = !showAttachMenu }
+                    ) {
+                        Icon(
+                            if (showAttachMenu) Icons.Default.Close else Icons.Default.AttachFile,
+                            contentDescription = "Đính kèm",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    
+                    OutlinedTextField(
+                        value = messageText,
+                        onValueChange = { messageText = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Nhập tin nhắn...") },
+                        shape = RoundedCornerShape(24.dp),
+                        maxLines = 3
                     )
+                    
+                    IconButton(
+                        onClick = {
+                            if (messageText.isNotBlank()) {
+                                scope.launch {
+                                    try {
+                                        val dbMessage = com.example.myapplication.data.model.GroupMessage(
+                                            groupId = groupId,
+                                            senderId = currentUserId,
+                                            senderName = currentUserName,
+                                            content = messageText.trim(),
+                                            messageType = "text"
+                                        )
+                                        messageDao.insertMessage(dbMessage)
+                                        messageText = ""
+                                        showAttachMenu = false
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Lỗi gửi tin nhắn: ${e.message}",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+                        },
+                        enabled = messageText.isNotBlank(),
+                        modifier = Modifier.size(48.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (messageText.isNotBlank()) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (messageText.isNotBlank()) 
+                                Color.White 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Gửi"
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+fun AttachButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(56.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+fun getFileName(context: android.content.Context, uri: android.net.Uri): String {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) {
+                    result = it.getString(index)
+                }
+            }
+        }
+    }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/')
+        if (cut != -1 && cut != null) {
+            result = result?.substring(cut + 1)
+        }
+    }
+    return result ?: "unknown"
 }
 
 @Composable
@@ -725,7 +907,6 @@ fun MessageBubble(message: MessageItem) {
         horizontalArrangement = if (message.isCurrentUser) Arrangement.End else Arrangement.Start
     ) {
         if (!message.isCurrentUser) {
-            // Avatar for other users
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -771,11 +952,63 @@ fun MessageBubble(message: MessageItem) {
                 Column(
                     modifier = Modifier.padding(12.dp)
                 ) {
-                    Text(
-                        text = message.content,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (message.isCurrentUser) Color.White else Color.Black
-                    )
+                    // File attachment
+                    if (message.messageType == "file" && message.fileName != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (message.isCurrentUser) 
+                                        Color.White.copy(alpha = 0.2f) 
+                                    else 
+                                        Color.Gray.copy(alpha = 0.1f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.InsertDriveFile,
+                                contentDescription = null,
+                                tint = if (message.isCurrentUser) Color.White else Color.Gray,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = message.fileName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (message.isCurrentUser) Color.White else Color.Black,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                if (message.content.isNotEmpty()) {
+                                    Text(
+                                        text = message.content,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (message.isCurrentUser) 
+                                            Color.White.copy(alpha = 0.8f) 
+                                        else 
+                                            Color.Gray
+                                    )
+                                }
+                            }
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = "Tải xuống",
+                                tint = if (message.isCurrentUser) Color.White else Color.Gray,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else {
+                        // Text message
+                        Text(
+                            text = message.content,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (message.isCurrentUser) Color.White else Color.Black
+                        )
+                    }
+                    
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = message.time,
@@ -791,7 +1024,6 @@ fun MessageBubble(message: MessageItem) {
         
         if (message.isCurrentUser) {
             Spacer(modifier = Modifier.width(8.dp))
-            // Avatar for current user
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -814,7 +1046,10 @@ data class MessageItem(
     val senderName: String,
     val content: String,
     val time: String,
-    val isCurrentUser: Boolean
+    val isCurrentUser: Boolean,
+    val messageType: String = "text", // text, file, image
+    val fileName: String? = null,
+    val fileUrl: String? = null
 )
 
 data class PendingRequest(

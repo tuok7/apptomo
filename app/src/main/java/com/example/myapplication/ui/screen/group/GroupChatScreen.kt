@@ -23,8 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myapplication.data.api.MessageData
+import androidx.compose.ui.platform.LocalContext
+import com.example.myapplication.data.model.GroupMessage
+import com.example.myapplication.data.database.AppDatabase
 import com.example.myapplication.ui.viewmodel.GroupViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,16 +40,42 @@ fun GroupChatScreen(
     currentUserId: Long,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val database = remember { AppDatabase.getDatabase(context) }
+    val scope = rememberCoroutineScope()
+    
     var messageText by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Trò chuyện", "Tài liệu", "Công việc")
     
-    val messages by viewModel.messages.collectAsState()
+    // Load messages from Room database
+    var messages by remember { mutableStateOf<List<GroupMessage>>(emptyList()) }
     val listState = rememberLazyListState()
+    
+    // Reply state
+    var replyingTo by remember { mutableStateOf<GroupMessage?>(null) }
+    
+    // Info dialog state
+    var showInfoDialog by remember { mutableStateOf(false) }
+    
+    // Get current user name from preferences
+    val userPreferences = remember { 
+        com.example.myapplication.data.preferences.UserPreferences(context) 
+    }
+    val currentUserName = remember { userPreferences.getFullName().ifEmpty { "Người dùng" } }
+    
+    // Create ChatHelper
+    val chatHelper = remember(database, groupId, currentUserId, currentUserName) {
+        ChatHelper(database, groupId, currentUserId, currentUserName)
+    }
     
     // Load messages when screen opens
     LaunchedEffect(groupId) {
-        viewModel.loadMessages(groupId)
+        scope.launch {
+            database.groupMessageDao().getMessagesByGroup(groupId).collect { messageList ->
+                messages = messageList
+            }
+        }
     }
     
     // Auto scroll to bottom when new message arrives
@@ -103,7 +132,7 @@ fun GroupChatScreen(
                     }
                     
                     IconButton(
-                        onClick = { /* Info */ },
+                        onClick = { showInfoDialog = true },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
@@ -164,9 +193,23 @@ fun GroupChatScreen(
                             items(messages, key = { it.id }) { message ->
                                 ModernChatMessageItem(
                                     message = message,
-                                    isCurrentUser = message.userId == currentUserId,
-                                    onDeleteClick = {
-                                        viewModel.deleteMessage(message.id, groupId)
+                                    isCurrentUser = message.senderId == currentUserId,
+                                    currentUserId = currentUserId,
+                                    onDeleteClick = { 
+                                        scope.launch {
+                                            chatHelper.deleteMessage(message.id)
+                                        }
+                                    },
+                                    onReplyClick = { replyingTo = message },
+                                    onEditClick = { newText -> 
+                                        scope.launch {
+                                            chatHelper.editMessage(message.id, newText)
+                                        }
+                                    },
+                                    onReactionClick = { reaction -> 
+                                        scope.launch {
+                                            chatHelper.addReaction(message.id, reaction, currentUserId)
+                                        }
                                     }
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -181,72 +224,127 @@ fun GroupChatScreen(
                     color = Color.White,
                     shadowElevation = 8.dp
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        IconButton(
-                            onClick = { /* Attach */ },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = "Đính kèm",
-                                tint = Color.Gray
-                            )
-                        }
-                        
-                        OutlinedTextField(
-                            value = messageText,
-                            onValueChange = { messageText = it },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { 
-                                Text(
-                                    "Nhắn tin...",
-                                    color = Color.Gray
-                                ) 
-                            },
-                            shape = RoundedCornerShape(24.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF4A90E2),
-                                unfocusedBorderColor = Color(0xFFE0E0E0),
-                                focusedTextColor = Color.Black,
-                                unfocusedTextColor = Color.Black,
-                                cursorColor = Color(0xFF4A90E2)
-                            ),
-                            maxLines = 3
-                        )
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        IconButton(
-                            onClick = { /* Emoji */ },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.EmojiEmotions,
-                                contentDescription = "Emoji",
-                                tint = Color.Gray
-                            )
-                        }
-                        
-                        FloatingActionButton(
-                            onClick = {
-                                if (messageText.isNotBlank()) {
-                                    viewModel.sendMessage(groupId, messageText.trim())
-                                    messageText = ""
+                    Column {
+                        // Reply preview
+                        if (replyingTo != null) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Color(0xFFF5F5F5)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Reply,
+                                        contentDescription = null,
+                                        tint = Color(0xFF4A90E2),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Trả lời ${replyingTo?.senderName}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF4A90E2)
+                                        )
+                                        Text(
+                                            text = replyingTo?.content ?: "",
+                                            fontSize = 12.sp,
+                                            color = Color.Gray,
+                                            maxLines = 1
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { replyingTo = null },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Hủy",
+                                            tint = Color.Gray
+                                        )
+                                    }
                                 }
-                            },
-                            modifier = Modifier.size(48.dp),
-                            containerColor = if (messageText.isNotBlank()) Color(0xFF4A90E2) else Color.LightGray
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.Bottom
                         ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Gửi",
-                                tint = Color.White
+                            IconButton(
+                                onClick = { /* Attach */ },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "Đính kèm",
+                                    tint = Color.Gray
+                                )
+                            }
+                            
+                            OutlinedTextField(
+                                value = messageText,
+                                onValueChange = { messageText = it },
+                                modifier = Modifier.weight(1f),
+                                placeholder = { 
+                                    Text(
+                                        "Nhắn tin...",
+                                        color = Color.Gray
+                                    ) 
+                                },
+                                shape = RoundedCornerShape(24.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF4A90E2),
+                                    unfocusedBorderColor = Color(0xFFE0E0E0),
+                                    focusedTextColor = Color.Black,
+                                    unfocusedTextColor = Color.Black,
+                                    cursorColor = Color(0xFF4A90E2)
+                                ),
+                                maxLines = 3
                             )
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            IconButton(
+                                onClick = { /* Emoji */ },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.EmojiEmotions,
+                                    contentDescription = "Emoji",
+                                    tint = Color.Gray
+                                )
+                            }
+                            
+                            FloatingActionButton(
+                                onClick = {
+                                    if (messageText.isNotBlank()) {
+                                        scope.launch {
+                                            chatHelper.sendMessage(
+                                                content = messageText.trim(),
+                                                replyToMessage = replyingTo
+                                            )
+                                            messageText = ""
+                                            replyingTo = null
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(48.dp),
+                                containerColor = if (messageText.isNotBlank()) Color(0xFF4A90E2) else Color.LightGray
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "Gửi",
+                                    tint = Color.White
+                                )
+                            }
                         }
                     }
                 }
@@ -283,117 +381,109 @@ fun GroupChatScreen(
             }
         }
     }
+    
+    // Info Dialog
+    if (showInfoDialog) {
+        GroupInfoDialog(
+            groupName = groupName,
+            messageCount = messages.size,
+            onDismiss = { showInfoDialog = false }
+        )
+    }
 }
 
 @Composable
-fun ModernChatMessageItem(
-    message: MessageData,
-    isCurrentUser: Boolean,
-    onDeleteClick: () -> Unit
+fun GroupInfoDialog(
+    groupName: String,
+    messageCount: Int,
+    onDismiss: () -> Unit
 ) {
-    val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    val time = try {
-        val date = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(message.createdAt)
-        dateFormat.format(date ?: Date())
-    } catch (e: Exception) {
-        message.createdAt
-    }
-    
-    Column {
-        if (!isCurrentUser) {
-            // Show sender name for others
-            Text(
-                text = message.senderName,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.Gray,
-                modifier = Modifier.padding(start = 52.dp, bottom = 4.dp)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.Info,
+                contentDescription = null,
+                tint = Color(0xFF4A90E2),
+                modifier = Modifier.size(48.dp)
             )
-        }
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
-        ) {
-            if (!isCurrentUser) {
-                // Avatar for others
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF667eea), Color(0xFF764ba2))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = message.senderName.first().toString(),
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-            
+        },
+        title = {
+            Text(
+                text = "Thông tin nhóm",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        text = {
             Column(
-                modifier = Modifier.widthIn(max = 280.dp),
-                horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(
-                        topStart = if (isCurrentUser) 20.dp else 4.dp,
-                        topEnd = if (isCurrentUser) 4.dp else 20.dp,
-                        bottomStart = 20.dp,
-                        bottomEnd = 20.dp
-                    ),
-                    color = if (isCurrentUser) 
-                        Color(0xFF4A90E2)
-                    else 
-                        Color(0xFFF5F5F5),
-                    shadowElevation = 2.dp,
-                    modifier = if (isCurrentUser) Modifier.clickable { onDeleteClick() } else Modifier
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = message.message,
-                            fontSize = 14.sp,
-                            color = if (isCurrentUser) Color.White else Color.Black,
-                            lineHeight = 20.sp
-                        )
-                    }
-                }
-                
-                Text(
-                    text = time,
-                    fontSize = 11.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                InfoRow(
+                    icon = Icons.Default.Group,
+                    label = "Tên nhóm",
+                    value = groupName
+                )
+                InfoRow(
+                    icon = Icons.Default.Message,
+                    label = "Số tin nhắn",
+                    value = "$messageCount tin nhắn"
+                )
+                InfoRow(
+                    icon = Icons.Default.People,
+                    label = "Thành viên",
+                    value = "Đang cập nhật..."
+                )
+                InfoRow(
+                    icon = Icons.Default.DateRange,
+                    label = "Ngày tạo",
+                    value = "Đang cập nhật..."
                 )
             }
-            
-            if (isCurrentUser) {
-                Spacer(modifier = Modifier.width(12.dp))
-                // Avatar for current user
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF4A90E2)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = message.senderName.first().toString(),
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
-                }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4A90E2)
+                )
+            ) {
+                Text("Đóng")
             }
+        }
+    )
+}
+
+@Composable
+fun InfoRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = Color(0xFF4A90E2),
+            modifier = Modifier.size(24.dp)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+            Text(
+                text = value,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Black
+            )
         }
     }
 }

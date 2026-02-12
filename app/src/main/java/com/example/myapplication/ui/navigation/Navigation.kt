@@ -29,6 +29,7 @@ sealed class Screen(val route: String) {
         fun createRoute(groupId: Long) = "group_detail/$groupId"
     }
     object AddGroup : Screen("add_group")
+    object JoinGroup : Screen("join_group")
     object AddMember : Screen("add_member/{groupId}") {
         fun createRoute(groupId: Long) = "add_member/$groupId"
     }
@@ -152,6 +153,16 @@ fun AppNavigation(
                 viewModel = viewModel,
                 onBackClick = { navController.popBackStack() },
                 onGroupAdded = { navController.popBackStack() }
+            )
+        }
+        
+        composable(Screen.JoinGroup.route) {
+            JoinGroupScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onJoinSuccess = { groupCode ->
+                    // TODO: Join group and navigate to group detail
+                    navController.popBackStack()
+                }
             )
         }
         

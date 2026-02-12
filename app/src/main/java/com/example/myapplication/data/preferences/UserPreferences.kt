@@ -12,6 +12,7 @@ class UserPreferences(context: Context) {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_FULL_NAME = "full_name"
         private const val KEY_EMAIL = "email"
+        private const val KEY_PHONE = "phone"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_REMEMBER_LOGIN = "remember_login"
         private const val KEY_SAVED_EMAIL = "saved_email"
@@ -35,6 +36,20 @@ class UserPreferences(context: Context) {
     fun getFullName(): String = prefs.getString(KEY_FULL_NAME, "") ?: ""
     
     fun getEmail(): String = prefs.getString(KEY_EMAIL, "") ?: ""
+    
+    fun getPhone(): String = prefs.getString(KEY_PHONE, "") ?: ""
+    
+    fun saveFullName(fullName: String) {
+        prefs.edit().putString(KEY_FULL_NAME, fullName).apply()
+    }
+    
+    fun saveEmail(email: String) {
+        prefs.edit().putString(KEY_EMAIL, email).apply()
+    }
+    
+    fun savePhone(phone: String) {
+        prefs.edit().putString(KEY_PHONE, phone).apply()
+    }
     
     fun isLoggedIn(): Boolean = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
     

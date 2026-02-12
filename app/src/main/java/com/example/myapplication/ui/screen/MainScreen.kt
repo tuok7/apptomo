@@ -78,7 +78,7 @@ fun MainScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
             when (selectedTab) {
-                0 -> HomeScreen()
+                0 -> HomeScreen(navController = navController)
                 1 -> GroupListScreen(
                     viewModel = viewModel,
                     onGroupClick = { group ->
@@ -86,6 +86,9 @@ fun MainScreen(
                     },
                     onAddGroupClick = {
                         navController.navigate("add_group")
+                    },
+                    onJoinGroupClick = {
+                        navController.navigate("join_group")
                     }
                 )
                 2 -> NotificationScreen()

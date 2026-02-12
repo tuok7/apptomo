@@ -30,46 +30,47 @@ fun AccountScreen(
     val context = LocalContext.current
     val userPreferences = remember { UserPreferences(context) }
     
-    // Lấy thông tin user từ SharedPreferences
     val fullName = userPreferences.getFullName()
     val email = userPreferences.getEmail()
     
-    // State cho sinh trắc học
     var isBiometricEnabled by remember { mutableStateOf(userPreferences.isBiometricEnabled()) }
     var showBiometricDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
                     Text(
                         "Tài khoản",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
                     ) 
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = Color(0xFFE3F2FD),
+                    titleContentColor = Color(0xFF1976D2)
                 )
             )
         }
     ) { paddingValues ->
-        Box {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color(0xFFF5F5F5)),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             // Profile Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = Color.Transparent
-                    )
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -85,7 +86,8 @@ fun AccountScreen(
                             .padding(24.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Box(
                                 modifier = Modifier
@@ -123,21 +125,58 @@ fun AccountScreen(
                 }
             }
 
-            // Account Settings
+            // Stats Row
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        number = "05",
+                        label = "Số nhóm",
+                        color = Color(0xFF4CAF50)
+                    )
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        number = "12",
+                        label = "Công việc",
+                        color = Color(0xFF2196F3)
+                    )
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        number = "4.8+",
+                        label = "Đánh giá",
+                        color = Color(0xFFFF9800)
+                    )
+                }
+            }
+
+            // Account Settings Section
             item {
                 Text(
-                    text = "Cài đặt tài khoản",
-                    fontSize = 16.sp,
+                    text = "CÀI ĐẶT TÀI KHOẢN",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                 )
             }
 
             item {
                 SettingItem(
                     icon = Icons.Default.Edit,
+                    iconColor = Color(0xFF2196F3),
                     title = "Chỉnh sửa thông tin",
-                    subtitle = "Cập nhật thông tin cá nhân",
+                    onClick = { }
+                )
+            }
+
+            item {
+                SettingItem(
+                    icon = Icons.Default.Notifications,
+                    iconColor = Color(0xFF2196F3),
+                    title = "Quản lý thông báo",
                     onClick = { }
                 )
             }
@@ -145,179 +184,97 @@ fun AccountScreen(
             item {
                 SettingItem(
                     icon = Icons.Default.Lock,
+                    iconColor = Color(0xFF2196F3),
                     title = "Đổi mật khẩu",
-                    subtitle = "Thay đổi mật khẩu của bạn",
                     onClick = { }
                 )
             }
             
             item {
-                SettingItemWithSwitch(
-                    icon = Icons.Default.Fingerprint,
-                    title = "Đăng nhập sinh trắc học",
-                    subtitle = if (isBiometricEnabled) "Đã bật - Dùng vân tay/Face ID" else "Tắt - Đăng nhập bằng mật khẩu",
-                    checked = isBiometricEnabled,
-                    onCheckedChange = { enabled ->
-                        if (enabled) {
-                            // Bật sinh trắc học
-                            if (userPreferences.isRememberLogin()) {
-                                userPreferences.enableBiometric(userPreferences.getSavedEmail())
-                                isBiometricEnabled = true
-                            } else {
-                                showBiometricDialog = true
-                            }
-                        } else {
-                            // Tắt sinh trắc học
-                            userPreferences.disableBiometric()
-                            isBiometricEnabled = false
-                        }
-                    }
-                )
-            }
-
-            item {
                 SettingItem(
-                    icon = Icons.Default.Notifications,
-                    title = "Thông báo",
-                    subtitle = "Quản lý thông báo",
+                    icon = Icons.Default.Security,
+                    iconColor = Color(0xFF2196F3),
+                    title = "Bảo mật & Quyền riêng tư",
                     onClick = { }
                 )
             }
 
-            // App Settings
+            // Help Section
             item {
                 Text(
-                    text = "Cài đặt ứng dụng",
-                    fontSize = 16.sp,
+                    text = "HỖ TRỢ",
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-
-            item {
-                SettingItem(
-                    icon = Icons.Default.Language,
-                    title = "Ngôn ngữ",
-                    subtitle = "Tiếng Việt",
-                    onClick = { }
-                )
-            }
-
-            item {
-                SettingItem(
-                    icon = Icons.Default.DarkMode,
-                    title = "Giao diện",
-                    subtitle = "Chế độ sáng/tối",
-                    onClick = { }
-                )
-            }
-            
-            item {
-                SettingItem(
-                    icon = Icons.Default.CloudOff,
-                    title = "Chế độ Offline",
-                    subtitle = "Làm việc không cần internet",
-                    onClick = { }
-                )
-            }
-            
-            item {
-                SettingItem(
-                    icon = Icons.Default.Mic,
-                    title = "Nhập giọng nói",
-                    subtitle = "Bật/tắt nhập bằng giọng nói",
-                    onClick = { }
-                )
-            }
-
-            // Other
-            item {
-                Text(
-                    text = "Dữ liệu",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-            
-            item {
-                SettingItem(
-                    icon = Icons.Default.Download,
-                    title = "Xuất dữ liệu",
-                    subtitle = "Xuất PDF/Excel",
-                    onClick = { }
-                )
-            }
-            
-            item {
-                SettingItem(
-                    icon = Icons.Default.Backup,
-                    title = "Sao lưu & Khôi phục",
-                    subtitle = "Quản lý dữ liệu sao lưu",
-                    onClick = { }
-                )
-            }
-            
-            item {
-                SettingItem(
-                    icon = Icons.Default.QrCode,
-                    title = "Chia sẻ QR Code",
-                    subtitle = "Tạo mã QR cho nhóm",
-                    onClick = { }
-                )
-            }
-
-            // Other
-            item {
-                Text(
-                    text = "Khác",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                 )
             }
 
             item {
                 SettingItem(
                     icon = Icons.Default.Help,
-                    title = "Trợ giúp",
-                    subtitle = "Câu hỏi thường gặp",
+                    iconColor = Color(0xFF2196F3),
+                    title = "Trung tâm trợ giúp",
                     onClick = { }
                 )
             }
 
+            // Logout Button
             item {
-                SettingItem(
-                    icon = Icons.Default.Info,
-                    title = "Về ứng dụng",
-                    subtitle = "Phiên bản 1.0.0",
-                    onClick = { }
-                )
-            }
-
-            item {
-                SettingItem(
-                    icon = Icons.Default.Logout,
-                    title = "Đăng xuất",
-                    subtitle = "Thoát khỏi tài khoản",
+                Card(
                     onClick = { showLogoutDialog = true },
-                    iconTint = Color(0xFFF44336)
-                )
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFEBEE)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = null,
+                            tint = Color(0xFFF44336),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Đăng xuất",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFF44336)
+                        )
+                    }
+                }
             }
 
+            // Footer
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Phiên bản 2.4.0 • Made with ❤ for Students",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         }
         
-        // Dialog thông báo sinh trắc học
+        // Biometric Dialog
         if (showBiometricDialog) {
             AlertDialog(
                 onDismissRequest = { showBiometricDialog = false },
                 icon = { Icon(Icons.Default.Fingerprint, contentDescription = null) },
                 title = { Text("Bật đăng nhập sinh trắc học") },
                 text = { 
-                    Text("Để sử dụng sinh trắc học, bạn cần đăng nhập và chọn 'Ghi nhớ đăng nhập' trước.\n\nSau đó, bạn có thể bật tính năng này để đăng nhập nhanh bằng vân tay hoặc Face ID.")
+                    Text("Để sử dụng sinh trắc học, bạn cần đăng nhập và chọn 'Ghi nhớ đăng nhập' trước.")
                 },
                 confirmButton = {
                     TextButton(onClick = { showBiometricDialog = false }) {
@@ -327,7 +284,7 @@ fun AccountScreen(
             )
         }
         
-        // Dialog xác nhận đăng xuất
+        // Logout Dialog
         if (showLogoutDialog) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
@@ -339,9 +296,7 @@ fun AccountScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            // Xóa tất cả dữ liệu đã lưu
                             userPreferences.clearAll()
-                            // Clear ViewModel data
                             viewModel.clearData()
                             showLogoutDialog = false
                             onLogout()
@@ -361,6 +316,43 @@ fun AccountScreen(
             )
         }
     }
+}
+
+@Composable
+fun StatCard(
+    modifier: Modifier = Modifier,
+    number: String,
+    label: String,
+    color: Color
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = number,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color.Gray,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
     }
 }
 
@@ -368,18 +360,18 @@ fun AccountScreen(
 @Composable
 fun SettingItem(
     icon: ImageVector,
+    iconColor: Color,
     title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    iconTint: Color = MaterialTheme.colorScheme.primary
+    onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
@@ -387,90 +379,34 @@ fun SettingItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(32.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(iconColor.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
+            )
             
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun SettingItemWithSwitch(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    iconTint: Color = MaterialTheme.colorScheme.primary
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(32.dp)
-            )
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF4A90E2),
-                    uncheckedThumbColor = Color.White,
-                    uncheckedTrackColor = Color.Gray
-                )
+                tint = Color.Gray,
+                modifier = Modifier.size(20.dp)
             )
         }
     }

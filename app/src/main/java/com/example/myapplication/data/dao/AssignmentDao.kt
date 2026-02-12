@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AssignmentDao {
+    @Query("SELECT * FROM assignments ORDER BY dueDate ASC")
+    fun getAllAssignments(): Flow<List<Assignment>>
+    
     @Query("SELECT * FROM assignments WHERE groupId = :groupId ORDER BY dueDate ASC")
     fun getAssignmentsByGroup(groupId: Long): Flow<List<Assignment>>
     

@@ -13,9 +13,10 @@ import com.example.myapplication.data.model.*
         Group::class,
         Member::class,
         Assignment::class,
-        AssignmentMember::class
+        AssignmentMember::class,
+        GroupMessage::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -24,6 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun memberDao(): MemberDao
     abstract fun assignmentDao(): AssignmentDao
     abstract fun assignmentMemberDao(): AssignmentMemberDao
+    abstract fun groupMessageDao(): GroupMessageDao
     
     companion object {
         @Volatile
@@ -35,7 +37,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "group_assignment_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

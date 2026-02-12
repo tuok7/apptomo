@@ -1,8 +1,8 @@
 package com.example.myapplication.ui.screen.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,142 +11,165 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.myapplication.ui.components.*
-import kotlinx.coroutines.delay
-
-data class Notification(
-    val id: Int,
-    val title: String,
-    val message: String,
-    val time: String,
-    val icon: ImageVector,
-    val color: Color,
-    val isRead: Boolean = false
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationScreen() {
-    var isLoading by remember { mutableStateOf(true) }
-    
-    val notifications = listOf(
-        Notification(
-            1,
-            "Nhiệm vụ mới",
-            "Bạn được giao nhiệm vụ 'Hoàn thành báo cáo'",
-            "5 phút trước",
-            Icons.Default.Assignment,
-            Color(0xFF2196F3),
-            false
-        ),
-        Notification(
-            2,
-            "Thành viên mới",
-            "Nguyễn Văn A đã tham gia nhóm 'Dự án X'",
-            "1 giờ trước",
-            Icons.Default.PersonAdd,
-            Color(0xFF4CAF50),
-            false
-        ),
-        Notification(
-            3,
-            "Hoàn thành nhiệm vụ",
-            "Trần Thị B đã hoàn thành nhiệm vụ 'Thiết kế UI'",
-            "2 giờ trước",
-            Icons.Default.CheckCircle,
-            Color(0xFFFF9800),
-            true
-        ),
-        Notification(
-            4,
-            "Nhắc nhở",
-            "Nhiệm vụ 'Review code' sắp đến hạn",
-            "3 giờ trước",
-            Icons.Default.Schedule,
-            Color(0xFFF44336),
-            true
-        ),
-        Notification(
-            5,
-            "Bình luận mới",
-            "Lê Văn C đã bình luận trong nhiệm vụ của bạn",
-            "1 ngày trước",
-            Icons.Default.Comment,
-            Color(0xFF9C27B0),
-            true
-        )
-    )
-    
-    // Simulate loading
-    LaunchedEffect(Unit) {
-        delay(1200)
-        isLoading = false
-    }
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Tất cả", "Chưa đọc")
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "Thông báo",
-                        fontWeight = FontWeight.Bold
-                    ) 
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Đánh dấu tất cả đã đọc */ }) {
-                        Icon(
-                            imageVector = Icons.Default.DoneAll,
-                            contentDescription = "Đánh dấu tất cả đã đọc"
+            Column {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            "Thông báo",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        ) 
+                    },
+                    actions = {
+                        TextButton(onClick = { /* TODO: Đọc tất cả */ }) {
+                            Text(
+                                "Đọc tất cả",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = Color(0xFF2196F3)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color(0xFFE3F2FD),
+                        titleContentColor = Color(0xFF1976D2)
+                    )
+                )
+                
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Color(0xFFE3F2FD),
+                    contentColor = Color(0xFF2196F3)
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { 
+                                Text(
+                                    title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                                ) 
+                            }
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
+                }
+            }
         }
     ) { paddingValues ->
-        when {
-            isLoading -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(6) {
-                        SkeletonGroupItem()
-                    }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color(0xFFF5F5F5))
+        ) {
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Section: HÔM NAY
+                item {
+                    Text(
+                        text = "HÔM NAY",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
                 }
-            }
-            notifications.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                ) {
-                    EmptyNotificationsState()
+                
+                // Notification items will be added here by user
+                // Example structure:
+                item {
+                    NotificationCard(
+                        icon = Icons.Default.Assignment,
+                        iconColor = Color(0xFF2196F3),
+                        iconBackground = Color(0xFFE3F2FD),
+                        title = "Bạn có một task mới được giao",
+                        message = "Thiết kế giao diện cho module quản lý thông báo của ứng dụng nhóm.",
+                        time = "2 phút trước",
+                        isRead = false,
+                        showBadge = true
+                    )
                 }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(notifications) { notification ->
-                        NotificationItem(notification)
-                    }
+                
+                item {
+                    NotificationCard(
+                        icon = Icons.Default.Warning,
+                        iconColor = Color(0xFFF44336),
+                        iconBackground = Color(0xFFFFEBEE),
+                        title = "Deadline môn Triết học còn 2 tiếng",
+                        message = "Nhắc nhở: Nộp bài tiểu luận cuối kỳ trước 12:00 PM hôm nay.",
+                        time = "Khẩn cấp",
+                        isRead = false,
+                        isUrgent = true
+                    )
+                }
+                
+                item {
+                    NotificationCard(
+                        icon = Icons.Default.Person,
+                        iconColor = Color(0xFFFF9800),
+                        iconBackground = Color(0xFFFFF3E0),
+                        title = "Nguyễn Văn A vừa gửi tài liệu mới",
+                        message = "Tài liệu tham khảo chương 3.pdf",
+                        time = "45 phút trước",
+                        isRead = true
+                    )
+                }
+                
+                // Section: HÔM QUA
+                item {
+                    Text(
+                        text = "HÔM QUA",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    )
+                }
+                
+                item {
+                    NotificationCard(
+                        icon = Icons.Default.Group,
+                        iconColor = Color(0xFF9C27B0),
+                        iconBackground = Color(0xFFF3E5F5),
+                        title = "Họp nhóm Dự án 1",
+                        message = "Buổi họp đã kết thúc. Xem lại biên bản cuộc họp trong mục tài liệu.",
+                        time = "1 ngày trước",
+                        isRead = true
+                    )
+                }
+                
+                item {
+                    NotificationCard(
+                        icon = Icons.Default.Person,
+                        iconColor = Color(0xFFFF9800),
+                        iconBackground = Color(0xFFFFF3E0),
+                        title = "Lê Thị B đã phản hồi bình luận của bạn",
+                        message = "\"Ý tưởng này rất hay, mình sẽ cập nhật...",
+                        time = "1 ngày trước",
+                        isRead = true
+                    )
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -155,75 +178,102 @@ fun NotificationScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationItem(notification: Notification) {
+fun NotificationCard(
+    icon: ImageVector,
+    iconColor: Color,
+    iconBackground: Color,
+    title: String,
+    message: String,
+    time: String,
+    isRead: Boolean = false,
+    showBadge: Boolean = false,
+    isUrgent: Boolean = false
+) {
     Card(
-        onClick = { /* TODO: Xử lý click */ },
+        onClick = { /* TODO: Handle click */ },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (notification.isRead) 
-                MaterialTheme.colorScheme.surface 
-            else 
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        )
+            containerColor = if (isUrgent) Color(0xFFFFEBEE) else Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(CircleShape)
-                    .padding(8.dp),
+                    .background(iconBackground, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = notification.icon,
+                    imageVector = icon,
                     contentDescription = null,
-                    tint = notification.color,
-                    modifier = Modifier.size(32.dp)
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
                 )
             }
             
             Spacer(modifier = Modifier.width(12.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = notification.title,
-                    fontSize = 16.sp,
-                    fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = notification.message,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = notification.time,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-            
-            if (!notification.isRead) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .padding(4.dp),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        modifier = Modifier.size(8.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary
-                    ) {}
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (isRead) FontWeight.Normal else FontWeight.Bold,
+                        color = if (isUrgent) Color(0xFFF44336) else Color.Black,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    
+                    if (showBadge) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Color(0xFF2196F3), CircleShape)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 20.sp
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = if (isUrgent) Color(0xFFF44336) else Color.Gray,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = time,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isUrgent) Color(0xFFF44336) else Color.Gray
+                    )
                 }
             }
         }
