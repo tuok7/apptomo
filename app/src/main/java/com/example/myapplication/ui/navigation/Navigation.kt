@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -16,6 +17,8 @@ import com.example.myapplication.ui.screen.MainScreen
 import com.example.myapplication.ui.screen.auth.*
 import com.example.myapplication.ui.screen.group.*
 import com.example.myapplication.ui.screen.assignment.*
+import com.example.myapplication.ui.screen.settings.SettingsScreen
+import com.example.myapplication.ui.screen.schedule.ScheduleScreen
 import com.example.myapplication.ui.viewmodel.GroupViewModel
 
 sealed class Screen(val route: String) {
@@ -25,6 +28,8 @@ sealed class Screen(val route: String) {
         fun createRoute(email: String) = "reset_password/$email"
     }
     object Main : Screen("main")
+    object Settings : Screen("settings")
+    object Schedule : Screen("schedule")
     object GroupDetail : Screen("group_detail/{groupId}") {
         fun createRoute(groupId: Long) = "group_detail/$groupId"
     }
@@ -120,6 +125,19 @@ fun AppNavigation(
                     }
                 }
             )
+        }
+        
+        composable(Screen.Settings.route) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
+            SettingsScreen(
+                navController = navController,
+                userPreferences = userPreferences
+            )
+        }
+        
+        composable(Screen.Schedule.route) {
+            ScheduleScreen(navController = navController)
         }
         
         composable(

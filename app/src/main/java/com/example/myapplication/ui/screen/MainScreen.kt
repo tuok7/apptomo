@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -23,8 +24,8 @@ sealed class BottomNavItem(
 ) {
     object Home : BottomNavItem("home", "Trang chủ", Icons.Default.Home)
     object Groups : BottomNavItem("groups", "Nhóm", Icons.Default.Group)
-    object Notifications : BottomNavItem("notifications", "Thông báo", Icons.Default.Notifications)
-    object Account : BottomNavItem("account", "Tài khoản", Icons.Default.AccountCircle)
+    object Schedule : BottomNavItem("schedule", "Lịch trình", Icons.Default.Event)
+    object Settings : BottomNavItem("settings", "Cài đặt", Icons.Default.Settings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,8 +39,8 @@ fun MainScreen(
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.Groups,
-        BottomNavItem.Notifications,
-        BottomNavItem.Account
+        BottomNavItem.Schedule,
+        BottomNavItem.Settings
     )
     
     // Load groups khi vào MainScreen
@@ -50,7 +51,7 @@ fun MainScreen(
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = Color.White,
                 tonalElevation = 8.dp
             ) {
                 items.forEachIndexed { index, item ->
@@ -65,11 +66,11 @@ fun MainScreen(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            selectedIconColor = Color(0xFF6366F1),
+                            selectedTextColor = Color(0xFF6366F1),
+                            indicatorColor = Color(0xFF6366F1).copy(alpha = 0.1f),
+                            unselectedIconColor = Color(0xFF9CA3AF),
+                            unselectedTextColor = Color(0xFF9CA3AF)
                         )
                     )
                 }
@@ -91,11 +92,17 @@ fun MainScreen(
                         navController.navigate("join_group")
                     }
                 )
-                2 -> NotificationScreen()
-                3 -> AccountScreen(
-                    viewModel = viewModel,
-                    onLogout = onLogout
+                2 -> com.example.myapplication.ui.screen.schedule.ScheduleScreen(
+                    navController = navController
                 )
+                3 -> {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
+                    com.example.myapplication.ui.screen.settings.SettingsScreen(
+                        navController = navController,
+                        userPreferences = userPreferences
+                    )
+                }
             }
         }
     }

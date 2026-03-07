@@ -1,6 +1,9 @@
 package com.example.myapplication.ui.screen.home
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -31,248 +34,417 @@ fun OverviewTab(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val database = remember { com.example.myapplication.data.database.AppDatabase.getDatabase(context) }
-    val userName = remember { userPreferences.getFullName().ifEmpty { "Người dùng" } }
+    val userName = remember { userPreferences.getFullName().ifEmpty { "Alex" } }
     
     // Lấy dữ liệu thật từ database
     val groups by database.groupDao().getAllGroups().collectAsState(initial = emptyList())
     val allAssignments by database.assignmentDao().getAllAssignments().collectAsState(initial = emptyList())
     
     // Tính toán thống kê
-    val totalGroups = groups.size
-    val totalAssignments = allAssignments.size
+    val pendingAssignments = allAssignments.count { 
+        it.status == com.example.myapplication.data.model.AssignmentStatus.TODO ||
+        it.status == com.example.myapplication.data.model.AssignmentStatus.IN_PROGRESS
+    }
     val completedAssignments = allAssignments.count { 
         it.status == com.example.myapplication.data.model.AssignmentStatus.COMPLETED 
     }
-    val inProgressAssignments = allAssignments.count { 
-        it.status == com.example.myapplication.data.model.AssignmentStatus.IN_PROGRESS 
-    }
     
-    // Lấy nhiệm vụ ưu tiên cao
-    val highPriorityTasks = allAssignments
-        .filter { it.priority == com.example.myapplication.data.model.Priority.HIGH }
+    // Lấy nhiệm vụ hôm nay
+    val todayTasks = allAssignments
+        .filter { assignment ->
+            // Lọc các task có deadline hôm nay hoặc đang trong tiến trình
+            assignment.status != com.example.myapplication.data.model.AssignmentStatus.COMPLETED
+        }
         .sortedBy { it.dueDate }
         .take(3)
     
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(paddingValues)
-            .background(Brush.verticalGradient(listOf(Color(0xFFE3F2FD), Color(0xFFF5F5F5)))),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .background(Color(0xFFF8FAFC)),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        item { WelcomeCard(userName, totalAssignments, completedAssignments) }
-        item { QuickActionsRow(navController) }
-        item { Text("Tổng quan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+        // Welcome section
         item { 
-            StatsGrid(
-                totalGroups = totalGroups,
-                totalAssignments = totalAssignments,
-                completedAssignments = completedAssignments,
-                inProgressAssignments = inProgressAssignments
-            )
+            WelcomeSection(userName)
         }
         
-        if (highPriorityTasks.isNotEmpty()) {
-            item { 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Nhiệm vụ ưu tiên cao", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    TextButton(onClick = {}) {
-                        Text("Xem tất cả")
-                        Icon(Icons.Default.ArrowForward, null, modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-            items(highPriorityTasks.size) { index ->
-                val assignment = highPriorityTasks[index]
-                val taskData = TaskData(
-                    title = assignment.title,
-                    deadline = assignment.dueDate.toString(),
-                    priority = when (assignment.priority) {
-                        com.example.myapplication.data.model.Priority.HIGH -> "Cao"
-                        com.example.myapplication.data.model.Priority.MEDIUM -> "Trung bình"
-                        com.example.myapplication.data.model.Priority.LOW -> "Thấp"
-                    },
-                    status = when (assignment.status) {
-                        com.example.myapplication.data.model.AssignmentStatus.TODO -> "Chưa bắt đầu"
-                        com.example.myapplication.data.model.AssignmentStatus.IN_PROGRESS -> "Đang làm"
-                        com.example.myapplication.data.model.AssignmentStatus.COMPLETED -> "Hoàn thành"
-                    },
-                    progress = when (assignment.status) {
-                        com.example.myapplication.data.model.AssignmentStatus.TODO -> 0
-                        com.example.myapplication.data.model.AssignmentStatus.IN_PROGRESS -> 50
-                        com.example.myapplication.data.model.AssignmentStatus.COMPLETED -> 100
-                    }
+        // Stats overview theo mẫu
+        item { 
+            StatsOverviewSection(pendingAssignments, completedAssignments)
+        }
+        
+        // Weekly progress chart
+        item {
+            WeeklyProgressChart()
+        }
+        
+        // Today's schedule
+        item {
+            TodayScheduleSection(todayTasks, navController)
+        }
+    }
+}
+
+@Composable
+private fun WelcomeSection(userName: String) {
+    Column {
+        Text(
+            "Chào mừng trở lại, $userName",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color(0xFF6B7280)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                "Tổng quan của bạn",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
+            )
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF6366F1).copy(alpha = 0.1f)
+            ) {
+                Text(
+                    "Học kỳ 2",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFF6366F1),
+                    fontWeight = FontWeight.Medium
                 )
-                EnhancedTaskCard(taskData) {
-                    navController?.navigate(
-                        com.example.myapplication.ui.navigation.Screen.AssignmentDetail.createRoute(assignment.id)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsOverviewSection(pendingCount: Int, completedCount: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Đang chờ card
+        Card(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = Color(0xFF8B5CF6),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Đang chờ",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    String.format("%02d", pendingCount),
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Text(
+                    "+ 2 Mới",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFEF4444)
+                )
+            }
+        }
+        
+        // Đã hoàn thành card
+        Card(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Đã hoàn thành",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    String.format("%02d", completedCount),
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Text(
+                    "+ 5 Hôm nay",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF10B981)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeeklyProgressChart() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Tiến độ hàng tuần",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF8B5CF6).copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        "BÀI TẬP",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF8B5CF6),
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
-        } else {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Chart bars
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                val chartData = listOf(40, 30, 80, 25, 60, 45, 35) // Sample data
+                val days = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
+                
+                chartData.forEachIndexed { index, value ->
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            Icons.Default.Assignment,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = Color.Gray.copy(alpha = 0.5f)
+                        Box(
+                            modifier = Modifier
+                                .width(24.dp)
+                                .height((value * 1.5f).dp)
+                                .background(
+                                    if (index == 2) Color(0xFF6366F1) else Color(0xFFE5E7EB),
+                                    RoundedCornerShape(4.dp)
+                                )
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Chưa có nhiệm vụ nào",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.Gray
-                        )
-                        Text(
-                            "Tạo nhiệm vụ mới để bắt đầu",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray.copy(alpha = 0.7f)
+                            days[index],
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF9CA3AF)
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayScheduleSection(
+    todayTasks: List<com.example.myapplication.data.model.Assignment>,
+    navController: androidx.navigation.NavHostController?
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Hạn chót hôm nay",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                TextButton(
+                    onClick = { /* Navigate to full schedule */ }
+                ) {
+                    Text(
+                        "Xem tất cả",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6366F1)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (todayTasks.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Không có nhiệm vụ nào hôm nay",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF9CA3AF)
+                    )
+                }
+            } else {
+                // Sample schedule items theo mẫu
+                ScheduleItem(
+                    time = "14:00",
+                    title = "Calculus Set 4",
+                    subtitle = "Toán học nâng cao • Phòng 302",
+                    color = Color(0xFFEF4444),
+                    onClick = { }
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                ScheduleItem(
+                    time = "16:30",
+                    title = "Báo cáo thi nghiệm: Thấm thấu",
+                    subtitle = "Sinh học 101 • Cộng nộp bài",
+                    color = Color(0xFF8B5CF6),
+                    onClick = { }
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                ScheduleItem(
+                    time = "18:00",
+                    title = "Từ vựng tiếng Tây Ban Nha",
+                    subtitle = "Ngôn ngữ học • Ôn tập kiểm tra",
+                    color = Color(0xFF6B7280),
+                    onClick = { }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScheduleItem(
+    time: String,
+    title: String,
+    subtitle: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Time and color indicator
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                time,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF1F2937)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .background(color.copy(alpha = 0.2f), RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(color, CircleShape)
+                )
             }
         }
         
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-    }
-}
-
-@Composable
-private fun WelcomeCard(userName: String, totalTasks: Int, completedTasks: Int) {
-    val completionRate = if (totalTasks > 0) (completedTasks * 100 / totalTasks) else 0
-    
-    // Lấy thời gian hiện tại để hiển thị lời chào phù hợp
-    val currentHour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    val greeting = when (currentHour) {
-        in 0..11 -> "Chào buổi sáng! ☀️"
-        in 12..17 -> "Chào buổi chiều! 👋"
-        else -> "Chào buổi tối! 🌙"
-    }
-    
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth()
-                .background(Brush.linearGradient(listOf(Color(0xFF667eea), Color(0xFF764ba2))))
-                .padding(24.dp)
-        ) {
-            Column {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(greeting, style = MaterialTheme.typography.titleMedium, color = Color.White)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(userName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                    Box(
-                        modifier = Modifier.size(56.dp).background(Color.White.copy(alpha = 0.3f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(32.dp))
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    QuickStatChip(Icons.Default.Assignment, totalTasks.toString(), "Nhiệm vụ hôm nay", Modifier.weight(1f))
-                    QuickStatChip(Icons.Default.TrendingUp, "$completionRate%", "Hoàn thành", Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickActionsRow(navController: androidx.navigation.NavHostController? = null) {
-    Column {
-        Text("Thao tác nhanh", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { 
-                QuickActionCard(Icons.Default.Add, "Tạo nhóm", Color(0xFF4CAF50)) {
-                    navController?.navigate(com.example.myapplication.ui.navigation.Screen.AddGroup.route)
-                }
-            }
-            item { 
-                QuickActionCard(Icons.Default.Login, "Tham gia nhóm", Color(0xFF2196F3)) {
-                    navController?.navigate(com.example.myapplication.ui.navigation.Screen.JoinGroup.route)
-                }
-            }
-            item { 
-                QuickActionCard(Icons.Default.Assignment, "Thêm nhiệm vụ", Color(0xFFFF9800)) {
-                    // TODO: Show group selection dialog then navigate to add assignment
-                }
-            }
-            item { 
-                QuickActionCard(Icons.Default.Event, "Lịch họp", Color(0xFF9C27B0)) {
-                    // TODO: Navigate to calendar screen
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatsGrid(
-    totalGroups: Int,
-    totalAssignments: Int,
-    completedAssignments: Int,
-    inProgressAssignments: Int
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AnimatedStatCard(Modifier.weight(1f), totalGroups, "Nhóm", Color(0xFF4CAF50), Icons.Default.Group)
-            AnimatedStatCard(Modifier.weight(1f), totalAssignments, "Nhiệm vụ", Color(0xFF2196F3), Icons.Default.Assignment)
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AnimatedStatCard(Modifier.weight(1f), completedAssignments, "Hoàn thành", Color(0xFFFF9800), Icons.Default.CheckCircle)
-            AnimatedStatCard(Modifier.weight(1f), inProgressAssignments, "Đang làm", Color(0xFF9C27B0), Icons.Default.Schedule)
-        }
-    }
-}
-
-@Composable
-fun AnimatedStatCard(modifier: Modifier, number: Int, label: String, color: Color, icon: ImageVector) {
-    var animatedNumber by remember { mutableIntStateOf(0) }
-    LaunchedEffect(number) {
-        for (i in 0..number) {
-            animatedNumber = i
-            delay(30)
-        }
-    }
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
+        // Content
         Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.weight(1f)
         ) {
-            Box(
-                modifier = Modifier.size(64.dp)
-                    .background(Brush.radialGradient(listOf(color.copy(alpha = 0.2f), color.copy(alpha = 0.05f))), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(32.dp))
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(animatedNumber.toString(), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, color = color)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF1F2937)
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF6B7280)
+            )
+        }
+        
+        // More options
+        IconButton(
+            onClick = { /* Show options */ },
+            modifier = Modifier.size(24.dp)
+        ) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = "Tùy chọn",
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

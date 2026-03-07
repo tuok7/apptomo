@@ -13,16 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.data.api.GroupData
 import com.example.myapplication.ui.viewmodel.GroupViewModel
-import com.example.myapplication.ui.components.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,33 +31,17 @@ fun GroupListScreen(
 ) {
     val groups by viewModel.groups.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
-    var isRefreshing by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     
-    // Search and filter states
     var searchQuery by remember { mutableStateOf("") }
-    var showSearchBar by remember { mutableStateOf(false) }
-    var showSortMenu by remember { mutableStateOf(false) }
-    var sortOption by remember { mutableStateOf(SortOption.NAME) }
-    var showFilterMenu by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf("Tất cả") }
     
-    // Load groups khi vào màn hình
+    // Load groups when entering screen
     LaunchedEffect(Unit) {
         viewModel.loadGroups()
     }
     
-    val onRefresh: () -> Unit = {
-        scope.launch {
-            isRefreshing = true
-            viewModel.loadGroups()
-            delay(1000)
-            isRefreshing = false
-        }
-    }
-    
-    // Filter and sort groups
-    val filteredGroups = remember(groups, searchQuery, sortOption) {
+    // Filter groups based on search and filter
+    val filteredGroups = remember(groups, searchQuery, selectedFilter) {
         var result = groups
         
         // Search filter
@@ -71,302 +52,225 @@ fun GroupListScreen(
             }
         }
         
-        // Sort
-        result = when (sortOption) {
-            SortOption.NAME -> result.sortedBy { it.name }
-            SortOption.MEMBER_COUNT -> result.sortedByDescending { it.memberCount }
-            SortOption.RECENT -> result.sortedByDescending { it.id }
+        // Category filter
+        when (selectedFilter) {
+            "Đã tham gia" -> {
+                // Filter joined groups (mock logic)
+                result = result.filter { it.memberCount > 0 }
+            }
+            "Gợi ý" -> {
+                // Filter suggested groups (mock logic)
+                result = result.filter { it.memberCount > 10 }
+            }
         }
         
         result
     }
     
-    // Show error message
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Long
-            )
-            viewModel.clearError()
-        }
-    }
-    
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(
-                    title = { 
-                        if (showSearchBar) {
-                            TextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                placeholder = { Text("Tìm kiếm nhóm...") },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent
-                                ),
-                                singleLine = true
-                            )
-                        } else {
-                            Text(
-                                "Quản lý bài tập nhóm",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    },
-                    actions = {
-                        if (showSearchBar) {
-                            IconButton(onClick = { 
-                                showSearchBar = false
-                                searchQuery = ""
-                            }) {
-                                Icon(Icons.Default.Close, "Đóng tìm kiếm")
-                            }
-                        } else {
-                            IconButton(onClick = { showSearchBar = true }) {
-                                Icon(Icons.Default.Search, "Tìm kiếm")
-                            }
-                        }
-                        
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.Default.Sort, "Sắp xếp")
-                        }
-                        
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Theo tên") },
-                                onClick = {
-                                    sortOption = SortOption.NAME
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (sortOption == SortOption.NAME) {
-                                        Icon(Icons.Default.Check, null)
-                                    }
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Theo số thành viên") },
-                                onClick = {
-                                    sortOption = SortOption.MEMBER_COUNT
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (sortOption == SortOption.MEMBER_COUNT) {
-                                        Icon(Icons.Default.Check, null)
-                                    }
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Gần đây") },
-                                onClick = {
-                                    sortOption = SortOption.RECENT
-                                    showSortMenu = false
-                                },
-                                leadingIcon = {
-                                    if (sortOption == SortOption.RECENT) {
-                                        Icon(Icons.Default.Check, null)
-                                    }
-                                }
-                            )
-                        }
-                        
-                        IconButton(onClick = { showFilterMenu = true }) {
-                            Icon(Icons.Default.FilterList, "Lọc")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFFE3F2FD),
-                        titleContentColor = Color(0xFF1976D2)
+            TopAppBar(
+                title = { 
+                    Text(
+                        "Nhóm học tập",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
                     )
+                },
+                actions = {
+                    IconButton(onClick = onAddGroupClick) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Tạo nhóm",
+                            tint = Color(0xFF8B5CF6)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White
                 )
-                
-                // Statistics bar
-                if (!showSearchBar && groups.isNotEmpty()) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = Color(0xFFF5F5F5)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            StatItem(
-                                icon = Icons.Default.Group,
-                                label = "Tổng nhóm",
-                                value = groups.size.toString(),
-                                color = Color(0xFF2196F3)
-                            )
-                            StatItem(
-                                icon = Icons.Default.Person,
-                                label = "Thành viên",
-                                value = groups.sumOf { it.memberCount }.toString(),
-                                color = Color(0xFF4CAF50)
-                            )
-                            StatItem(
-                                icon = Icons.Default.Assignment,
-                                label = "Bài tập",
-                                value = "0",
-                                color = Color(0xFFFF9800)
-                            )
-                        }
-                    }
-                }
-            }
+            )
         },
-        floatingActionButton = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.End
-            ) {
-                // Join Group FAB
-                SmallFloatingActionButton(
-                    onClick = onJoinGroupClick,
-                    containerColor = Color(0xFF4CAF50)
-                ) {
-                    Icon(Icons.Default.Login, contentDescription = "Tham gia nhóm", tint = Color.White)
-                }
-                
-                // Create Group FAB
-                FloatingActionButton(
-                    onClick = onAddGroupClick,
-                    containerColor = Color(0xFF2196F3)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Tạo nhóm", tint = Color.White)
-                }
+        containerColor = Color(0xFFF8FAFC)
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Search Bar
+            item {
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Tìm kiếm nhóm học tập..."
+                )
             }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        when {
-            uiState.isLoading -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(5) {
-                        SkeletonGroupItem()
-                    }
-                }
+            
+            // Filter Chips
+            item {
+                FilterChipsRow(
+                    selectedFilter = selectedFilter,
+                    onFilterSelected = { selectedFilter = it }
+                )
             }
-            filteredGroups.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
+            
+            // Section Header
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (searchQuery.isNotEmpty()) {
-                        EmptySearchState(query = searchQuery)
-                    } else {
-                        EmptyGroupsState(onCreateGroup = onAddGroupClick)
-                    }
-                }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(filteredGroups, key = { it.id }) { group ->
-                        SwipeToDeleteItem(
-                            onDelete = { 
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Đã xóa nhóm ${group.name}")
-                                }
-                            }
-                        ) {
-                            EnhancedGroupCard(
-                                group = group,
-                                onClick = { onGroupClick(group) },
-                                onDelete = { 
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Đã xóa nhóm ${group.name}")
-                                    }
-                                }
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Nhóm của bạn",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
                     
-                    item {
-                        Spacer(modifier = Modifier.height(80.dp))
+                    TextButton(onClick = { /* Show all groups */ }) {
+                        Text(
+                            "Xem tất cả",
+                            color = Color(0xFF8B5CF6),
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
+            }
+            
+            // Groups List
+            if (uiState.isLoading) {
+                items(3) {
+                    GroupItemSkeleton()
+                }
+            } else if (filteredGroups.isEmpty()) {
+                item {
+                    EmptyGroupsCard(onCreateGroup = onAddGroupClick)
+                }
+            } else {
+                items(filteredGroups) { group ->
+                    GroupItem(
+                        group = group,
+                        onClick = { onGroupClick(group) }
+                    )
+                }
+            }
+            
+            // Create Group Card
+            item {
+                CreateGroupCard(onClick = onAddGroupClick)
             }
         }
     }
 }
 
 @Composable
-fun StatItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String,
-    color: Color
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    placeholder: String
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { 
             Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = color
+                placeholder,
+                color = Color(0xFF9CA3AF)
+            ) 
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF)
             )
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+        },
+        modifier = Modifier.fillMaxWidth(),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedTextColor = Color(0xFF1F2937),
+            unfocusedTextColor = Color(0xFF1F2937),
+            cursorColor = Color(0xFF8B5CF6)
+        ),
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp)
+    )
+}
+
+@Composable
+private fun FilterChipsRow(
+    selectedFilter: String,
+    onFilterSelected: (String) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FilterChip(
+            selected = selectedFilter == "Tất cả",
+            onClick = { onFilterSelected("Tất cả") },
+            label = { Text("Tất cả") },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = Color(0xFF8B5CF6),
+                selectedLabelColor = Color.White,
+                containerColor = Color.White,
+                labelColor = Color(0xFF6B7280)
+            )
+        )
+        
+        FilterChip(
+            selected = selectedFilter == "Đã tham gia",
+            onClick = { onFilterSelected("Đã tham gia") },
+            label = { Text("Đã tham gia") },
+            trailingIcon = {
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = Color(0xFF8B5CF6),
+                selectedLabelColor = Color.White,
+                containerColor = Color.White,
+                labelColor = Color(0xFF6B7280)
+            )
+        )
+        
+        FilterChip(
+            selected = selectedFilter == "Gợi ý",
+            onClick = { onFilterSelected("Gợi ý") },
+            label = { Text("Gợi ý") },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = Color(0xFF8B5CF6),
+                selectedLabelColor = Color.White,
+                containerColor = Color.White,
+                labelColor = Color(0xFF6B7280)
+            )
         )
     }
 }
 
 @Composable
-fun EnhancedGroupCard(
+private fun GroupItem(
     group: GroupData,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
+    onClick: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
-    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        )
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -375,290 +279,317 @@ fun EnhancedGroupCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
+                // Group Avatar
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            getGroupColor(group.name),
+                            RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Group Avatar
+                    Text(
+                        text = group.name.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+                
+                // Group Info
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = group.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        
+                        // Status badge for popular groups
+                        if (group.memberCount > 20) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFF10B981).copy(alpha = 0.1f)
+                            ) {
+                                Text(
+                                    text = "HOT",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF10B981),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Group,
+                            contentDescription = null,
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "${group.memberCount} thành viên",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                }
+            }
+            
+            // Recent activity section (matching the mockup)
+            if (group.description.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // User avatar for recent activity
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE3F2FD)),
+                            .size(24.dp)
+                            .background(
+                                Color(0xFF8B5CF6),
+                                CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = group.name.take(2).uppercase(),
-                            style = MaterialTheme.typography.titleLarge,
+                            text = "A",
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2196F3)
+                            color = Color.White
                         )
                     }
                     
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = group.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF9CA3AF),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                     
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = group.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        
-                        if (group.description.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = group.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-                
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "Menu",
-                            tint = Color.Gray
-                        )
-                    }
-                    
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Chỉnh sửa") },
-                            onClick = { 
-                                showMenu = false
-                                // TODO: Navigate to edit
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Edit, null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Chia sẻ") },
-                            onClick = { 
-                                showMenu = false
-                                // TODO: Share group
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Share, null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Ghim") },
-                            onClick = { 
-                                showMenu = false
-                                // TODO: Pin group
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.PushPin, null)
-                            }
-                        )
-                        Divider()
-                        DropdownMenuItem(
-                            text = { Text("Xóa", color = Color.Red) },
-                            onClick = { 
-                                showMenu = false
-                                showDeleteDialog = true
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Delete, null, tint = Color.Red)
-                            }
-                        )
-                    }
+                    Text(
+                        text = "2 giờ trước",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF9CA3AF)
+                    )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Group stats
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+        }
+    }
+}
+
+@Composable
+private fun CreateGroupCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF8B5CF6)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        Color.White.copy(alpha = 0.2f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                GroupStatChip(
-                    icon = Icons.Default.Person,
-                    text = "${group.memberCount} thành viên",
-                    color = Color(0xFF4CAF50)
-                )
-                
-                GroupStatChip(
-                    icon = Icons.Default.Assignment,
-                    text = "0 bài tập",
-                    color = Color(0xFFFF9800)
-                )
-                
-                GroupStatChip(
-                    icon = Icons.Default.Message,
-                    text = "0 tin nhắn",
-                    color = Color(0xFF2196F3)
+                Icon(
+                    Icons.Default.GroupAdd,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
                 )
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Tạo nhóm học tập mới",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Text(
+                text = "Học cùng bạn bè để đạt kết quả tốt hơn\nvà trao đổi tài liệu dễ dàng.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.9f),
+                textAlign = TextAlign.Center,
+                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+            )
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            Surface(
+                onClick = onClick,
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White
             ) {
-                OutlinedButton(
-                    onClick = onClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF2196F3)
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.Chat,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Nhắn tin", style = MaterialTheme.typography.labelLarge)
-                }
-                
-                OutlinedButton(
-                    onClick = { /* TODO: View members */ },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF4CAF50)
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.Group,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Thành viên", style = MaterialTheme.typography.labelLarge)
-                }
+                Text(
+                    text = "Bắt đầu ngay",
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF8B5CF6),
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
-    }
-    
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            icon = {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = Color(0xFFF44336),
-                    modifier = Modifier.size(48.dp)
-                )
-            },
-            title = { 
-                Text(
-                    "Xác nhận xóa",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                ) 
-            },
-            text = { 
-                Text(
-                    "Bạn có chắc muốn xóa nhóm \"${group.name}\"? Tất cả thành viên, bài tập và tin nhắn sẽ bị xóa vĩnh viễn.",
-                    style = MaterialTheme.typography.bodyMedium
-                ) 
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF44336)
-                    )
-                ) {
-                    Text("Xóa")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Hủy")
-                }
-            }
-        )
     }
 }
 
 @Composable
-fun GroupStatChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    color: Color
-) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = color.copy(alpha = 0.1f)
+private fun EmptyGroupsCard(onCreateGroup: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = icon,
+                Icons.Default.Group,
                 contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(64.dp),
+                tint = Color(0xFF9CA3AF)
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
             Text(
-                text = text,
-                style = MaterialTheme.typography.bodySmall,
-                color = color,
-                fontWeight = FontWeight.Medium
+                text = "Chưa có nhóm nào",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1F2937)
             )
+            
+            Text(
+                text = "Tạo nhóm đầu tiên để bắt đầu học tập",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF6B7280),
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            Button(
+                onClick = onCreateGroup,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF8B5CF6)
+                )
+            ) {
+                Text("Tạo nhóm mới")
+            }
         }
     }
 }
 
 @Composable
-fun EmptySearchState(query: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+private fun GroupItemSkeleton() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.SearchOff,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = Color.Gray.copy(alpha = 0.5f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Không tìm thấy kết quả",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Không có nhóm nào phù hợp với \"$query\"",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        Color(0xFFE5E7EB),
+                        RoundedCornerShape(12.dp)
+                    )
+            )
+            
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(16.dp)
+                        .background(
+                            Color(0xFFE5E7EB),
+                            RoundedCornerShape(4.dp)
+                        )
+                )
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.4f)
+                        .height(12.dp)
+                        .background(
+                            Color(0xFFF3F4F6),
+                            RoundedCornerShape(4.dp)
+                        )
+                )
+            }
+        }
     }
 }
 
-enum class SortOption {
-    NAME,
-    MEMBER_COUNT,
-    RECENT
+private fun getGroupColor(groupName: String): Color {
+    val colors = listOf(
+        Color(0xFF10B981), // Green
+        Color(0xFF3B82F6), // Blue  
+        Color(0xFF8B5CF6), // Purple
+        Color(0xFFF59E0B), // Amber
+        Color(0xFFEF4444), // Red
+        Color(0xFF06B6D4), // Cyan
+        Color(0xFF84CC16), // Lime
+        Color(0xFFEC4899)  // Pink
+    )
+    
+    return colors[groupName.hashCode().mod(colors.size)]
 }

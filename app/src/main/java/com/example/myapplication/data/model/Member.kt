@@ -23,5 +23,8 @@ data class Member(
     val groupId: Long,
     val name: String,
     val email: String,
-    val role: String = "Thành viên"
+    val role: String = "Thành viên",
+    val isOnline: Boolean = false,
+    val lastSeen: Long = System.currentTimeMillis(),
+    val lastActivity: Long = System.currentTimeMillis()
 )

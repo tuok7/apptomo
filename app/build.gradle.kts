@@ -92,6 +92,17 @@ dependencies {
     // Biometric
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
     
+    // Image Loading
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.coil.video)
+    
+    // WorkManager
+    implementation(libs.androidx.work.runtime)
+    
+    // DataStore
+    implementation(libs.androidx.datastore)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

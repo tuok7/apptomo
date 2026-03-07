@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.example.myapplication.data.model.GroupMessage
+import com.example.myapplication.data.model.Member
 import com.example.myapplication.data.database.AppDatabase
 import com.example.myapplication.ui.viewmodel.GroupViewModel
 import kotlinx.coroutines.launch
@@ -58,6 +59,10 @@ fun GroupChatScreen(
     // Info dialog state
     var showInfoDialog by remember { mutableStateOf(false) }
     
+    // Members state
+    var members by remember { mutableStateOf<List<Member>>(emptyList()) }
+    var showMembersDialog by remember { mutableStateOf(false) }
+    
     // Get current user name from preferences
     val userPreferences = remember { 
         com.example.myapplication.data.preferences.UserPreferences(context) 
@@ -74,6 +79,70 @@ fun GroupChatScreen(
         scope.launch {
             database.groupMessageDao().getMessagesByGroup(groupId).collect { messageList ->
                 messages = messageList
+            }
+        }
+    }
+    
+    // Load members
+    LaunchedEffect(groupId) {
+        scope.launch {
+            database.memberDao().getMembersByGroup(groupId).collect { memberList ->
+                members = memberList
+                
+                // Thêm dữ liệu mẫu nếu chưa có members
+                if (memberList.isEmpty()) {
+                    val sampleMembers = listOf(
+                        Member(
+                            groupId = groupId,
+                            name = "Nguyễn Văn A",
+                            email = "a@example.com",
+                            role = "Admin",
+                            isOnline = true,
+                            lastSeen = System.currentTimeMillis(),
+                            lastActivity = System.currentTimeMillis()
+                        ),
+                        Member(
+                            groupId = groupId,
+                            name = "Trần Thị B",
+                            email = "b@example.com",
+                            role = "Thành viên",
+                            isOnline = true,
+                            lastSeen = System.currentTimeMillis() - 300000, // 5 phút trước
+                            lastActivity = System.currentTimeMillis() - 300000
+                        ),
+                        Member(
+                            groupId = groupId,
+                            name = "Lê Văn C",
+                            email = "c@example.com",
+                            role = "Thành viên",
+                            isOnline = false,
+                            lastSeen = System.currentTimeMillis() - 3600000, // 1 giờ trước
+                            lastActivity = System.currentTimeMillis() - 3600000
+                        ),
+                        Member(
+                            groupId = groupId,
+                            name = "Phạm Thị D",
+                            email = "d@example.com",
+                            role = "Thành viên",
+                            isOnline = false,
+                            lastSeen = System.currentTimeMillis() - 86400000, // 1 ngày trước
+                            lastActivity = System.currentTimeMillis() - 86400000
+                        ),
+                        Member(
+                            groupId = groupId,
+                            name = "Hoàng Văn E",
+                            email = "e@example.com",
+                            role = "Thành viên",
+                            isOnline = true,
+                            lastSeen = System.currentTimeMillis(),
+                            lastActivity = System.currentTimeMillis()
+                        )
+                    )
+                    
+                    sampleMembers.forEach { member ->
+                        database.memberDao().insertMember(member)
+                    }
+                }
             }
         }
     }
@@ -124,10 +193,34 @@ fun GroupChatScreen(
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
                         )
-                        Text(
-                            text = "${messages.size} tin nhắn",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "${members.count { it.isOnline }} online • ${members.size} thành viên",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            if (members.any { it.isOnline }) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4CAF50))
+                                )
+                            }
+                        }
+                    }
+                    
+                    IconButton(
+                        onClick = { showMembersDialog = true },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.People,
+                            contentDescription = "Thành viên",
+                            tint = Color.Black
                         )
                     }
                     
@@ -387,7 +480,17 @@ fun GroupChatScreen(
         GroupInfoDialog(
             groupName = groupName,
             messageCount = messages.size,
+            memberCount = members.size,
+            onlineCount = members.count { it.isOnline },
             onDismiss = { showInfoDialog = false }
+        )
+    }
+    
+    // Members Dialog
+    if (showMembersDialog) {
+        MembersListDialog(
+            members = members,
+            onDismiss = { showMembersDialog = false }
         )
     }
 }
@@ -396,6 +499,8 @@ fun GroupChatScreen(
 fun GroupInfoDialog(
     groupName: String,
     messageCount: Int,
+    memberCount: Int,
+    onlineCount: Int,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -426,17 +531,23 @@ fun GroupInfoDialog(
                     value = groupName
                 )
                 InfoRow(
-                    icon = Icons.Default.Message,
+                    icon = Icons.Default.Chat,
                     label = "Số tin nhắn",
                     value = "$messageCount tin nhắn"
                 )
                 InfoRow(
                     icon = Icons.Default.People,
                     label = "Thành viên",
-                    value = "Đang cập nhật..."
+                    value = "$memberCount thành viên"
                 )
                 InfoRow(
-                    icon = Icons.Default.DateRange,
+                    icon = Icons.Default.Circle,
+                    label = "Đang online",
+                    value = "$onlineCount/$memberCount online",
+                    iconTint = Color(0xFF4CAF50)
+                )
+                InfoRow(
+                    icon = Icons.Default.CalendarToday,
                     label = "Ngày tạo",
                     value = "Đang cập nhật..."
                 )
@@ -459,7 +570,8 @@ fun GroupInfoDialog(
 fun InfoRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    value: String
+    value: String,
+    iconTint: Color = Color(0xFF4A90E2)
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -469,7 +581,7 @@ fun InfoRow(
         Icon(
             icon,
             contentDescription = null,
-            tint = Color(0xFF4A90E2),
+            tint = iconTint,
             modifier = Modifier.size(24.dp)
         )
         Column(modifier = Modifier.weight(1f)) {
@@ -489,30 +601,87 @@ fun InfoRow(
 }
 
 @Composable
-fun MemberListDialog(onDismiss: () -> Unit) {
+fun MembersListDialog(
+    members: List<Member>,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Thành viên nhóm") },
+        icon = {
+            Icon(
+                Icons.Default.People,
+                contentDescription = null,
+                tint = Color(0xFF4A90E2),
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        title = { 
+            Column {
+                Text(
+                    text = "Thành viên nhóm",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+                Text(
+                    text = "${members.count { it.isOnline }} online • ${members.size} tổng",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
+        },
         text = {
-            LazyColumn {
-                items(5) { index ->
-                    MemberItem(
-                        name = when(index) {
-                            0 -> "Nguyễn Văn A"
-                            1 -> "Trần Thị B"
-                            2 -> "Lê Văn C"
-                            3 -> "Phạm Thị D"
-                            else -> "Hoàng Văn E"
-                        },
-                        role = if (index == 0) "Admin" else "Member",
-                        isOnline = index < 3
-                    )
-                    if (index < 4) Divider()
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 400.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Online members first
+                val onlineMembers = members.filter { it.isOnline }.sortedBy { it.name }
+                val offlineMembers = members.filter { !it.isOnline }.sortedBy { it.name }
+                
+                if (onlineMembers.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "ĐANG ONLINE (${onlineMembers.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                    items(onlineMembers) { member ->
+                        MemberItem(
+                            member = member,
+                            showLastSeen = false
+                        )
+                    }
+                }
+                
+                if (offlineMembers.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "OFFLINE (${offlineMembers.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                    items(offlineMembers) { member ->
+                        MemberItem(
+                            member = member,
+                            showLastSeen = true
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4A90E2)
+                )
+            ) {
                 Text("Đóng")
             }
         }
@@ -520,7 +689,10 @@ fun MemberListDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-fun MemberItem(name: String, role: String, isOnline: Boolean) {
+fun MemberItem(
+    member: Member,
+    showLastSeen: Boolean = false
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -532,24 +704,37 @@ fun MemberItem(name: String, role: String, isOnline: Boolean) {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(
+                        if (member.isOnline) Color(0xFF4A90E2) 
+                        else Color(0xFFE0E0E0)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = name.first().toString(),
+                    text = member.name.first().toString().uppercase(),
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = if (member.isOnline) Color.White else Color.Gray,
+                    fontSize = 16.sp
                 )
             }
             
-            if (isOnline) {
+            // Online indicator
+            if (member.isOnline) {
                 Box(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF4CAF50))
                         .align(Alignment.BottomEnd)
-                )
+                        .padding(1.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(Color.White)
+                    )
+                }
             }
         }
         
@@ -557,29 +742,54 @@ fun MemberItem(name: String, role: String, isOnline: Boolean) {
         
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = name,
+                text = member.name,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = Color.Black
             )
-            Text(
-                text = role,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            
+            if (member.isOnline) {
+                Text(
+                    text = "Đang hoạt động",
+                    fontSize = 12.sp,
+                    color = Color(0xFF4CAF50)
+                )
+            } else if (showLastSeen) {
+                Text(
+                    text = getLastSeenText(member.lastSeen),
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
         }
         
-        if (role == "Admin") {
+        // Role badge
+        if (member.role == "Admin") {
             Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF4A90E2).copy(alpha = 0.1f)
             ) {
                 Text(
                     text = "Admin",
                     fontSize = 11.sp,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    color = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    color = Color(0xFF4A90E2),
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
+    }
+}
+
+fun getLastSeenText(lastSeen: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - lastSeen
+    
+    return when {
+        diff < 60_000 -> "Vừa xem"
+        diff < 3600_000 -> "${diff / 60_000} phút trước"
+        diff < 86400_000 -> "${diff / 3600_000} giờ trước"
+        diff < 604800_000 -> "${diff / 86400_000} ngày trước"
+        else -> "Lâu rồi"
     }
 }

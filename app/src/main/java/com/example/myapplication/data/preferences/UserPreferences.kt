@@ -141,4 +141,65 @@ class UserPreferences(context: Context) {
     fun clearAll() {
         prefs.edit().clear().apply()
     }
+    
+    // Dark Mode
+    fun setDarkMode(enabled: Boolean) {
+        prefs.edit().putBoolean("dark_mode", enabled).apply()
+    }
+    
+    fun getDarkMode(): Boolean = prefs.getBoolean("dark_mode", false)
+    
+    // Reminder Notifications
+    fun setReminderNotifications(enabled: Boolean) {
+        prefs.edit().putBoolean("reminder_notifications", enabled).apply()
+    }
+    
+    fun getReminderNotifications(): Boolean = prefs.getBoolean("reminder_notifications", true)
+    
+    // Schedule Notifications
+    fun setScheduleNotifications(enabled: Boolean) {
+        prefs.edit().putBoolean("schedule_notifications", enabled).apply()
+    }
+    
+    fun getScheduleNotifications(): Boolean = prefs.getBoolean("schedule_notifications", true)
+    
+    // General Notifications
+    fun setNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("notifications_enabled", enabled).apply()
+    }
+    
+    fun isNotificationsEnabled(): Boolean = prefs.getBoolean("notifications_enabled", true)
+    
+    // Sound
+    fun setSoundEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("sound_enabled", enabled).apply()
+    }
+    
+    fun isSoundEnabled(): Boolean = prefs.getBoolean("sound_enabled", true)
+    
+    // Vibration
+    fun setVibrationEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("vibration_enabled", enabled).apply()
+    }
+    
+    fun isVibrationEnabled(): Boolean = prefs.getBoolean("vibration_enabled", true)
+    
+    // Language
+    fun setLanguage(language: String) {
+        prefs.edit().putString("language", language).apply()
+    }
+    
+    fun getLanguage(): String = prefs.getString("language", "vi") ?: "vi"
+    
+    // Clear user data for logout
+    fun clearUserData() {
+        prefs.edit().apply {
+            remove(KEY_USER_ID)
+            remove(KEY_FULL_NAME)
+            remove(KEY_EMAIL)
+            remove(KEY_PHONE)
+            putBoolean(KEY_IS_LOGGED_IN, false)
+            apply()
+        }
+    }
 }

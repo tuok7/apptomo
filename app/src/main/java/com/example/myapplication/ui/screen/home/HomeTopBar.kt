@@ -1,6 +1,8 @@
 package com.example.myapplication.ui.screen.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -8,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -25,87 +28,72 @@ fun HomeTopBar(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit
 ) {
-    Column {
+    // Simple header theo mẫu StudyFlow
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
         TopAppBar(
             title = { 
-                if (showSearch) {
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        placeholder = { Text("Tìm kiếm...") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        singleLine = true
-                    )
-                } else {
-                    Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Logo StudyFlow
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                Color(0xFF6366F1),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            "Trang chủ",
-                            style = MaterialTheme.typography.titleLarge,
+                            "S",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            "Chào buổi sáng! ☀️",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF1976D2).copy(alpha = 0.7f)
-                        )
                     }
+                    Text(
+                        "StudyFlow",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1F2937)
+                    )
                 }
             },
             actions = {
                 IconButton(onClick = onSearchToggle) {
                     Icon(
-                        if (showSearch) Icons.Default.Close else Icons.Default.Search,
-                        if (showSearch) "Đóng" else "Tìm kiếm"
+                        Icons.Default.Search,
+                        "Tìm kiếm",
+                        tint = Color(0xFF6B7280)
                     )
                 }
-                if (!showSearch) {
+                Box {
                     IconButton(onClick = { /* TODO: Notifications */ }) {
-                        Badge(containerColor = Color(0xFFF44336)) {
-                            Icon(Icons.Default.Notifications, "Thông báo")
-                        }
+                        Icon(
+                            Icons.Default.Notifications, 
+                            "Thông báo",
+                            tint = Color(0xFF6B7280)
+                        )
                     }
-                    IconButton(onClick = onMenuClick) {
-                        Icon(Icons.Default.Menu, "Menu")
-                    }
+                    // Notification badge
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(Color(0xFFEF4444), CircleShape)
+                            .offset(x = 4.dp, y = 4.dp)
+                    )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color(0xFFE3F2FD),
-                titleContentColor = Color(0xFF1976D2)
+                containerColor = Color.White,
+                titleContentColor = Color(0xFF1F2937)
             )
         )
-        
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = Color(0xFFE3F2FD),
-            contentColor = Color(0xFF2196F3),
-            edgePadding = 16.dp
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { onTabSelected(index) },
-                    text = { 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(tab.icon, null, modifier = Modifier.size(18.dp))
-                            Text(
-                                tab.title,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    }
-                )
-            }
-        }
     }
 }

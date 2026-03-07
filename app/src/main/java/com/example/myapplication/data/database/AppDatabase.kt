@@ -16,7 +16,7 @@ import com.example.myapplication.data.model.*
         AssignmentMember::class,
         GroupMessage::class
     ],
-    version = 3,
+    version = 3, // Giữ nguyên version 3
     exportSchema = false
 )
 @TypeConverters(Converters::class)
