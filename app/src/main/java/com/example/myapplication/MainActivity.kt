@@ -26,7 +26,12 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     val viewModel: GroupViewModel = viewModel()
-                    AppNavigation(navController = navController, viewModel = viewModel)
+                    val chatViewModel: com.example.myapplication.ui.viewmodel.ChatViewModel = viewModel()
+                    AppNavigation(
+                        navController = navController, 
+                        viewModel = viewModel,
+                        chatViewModel = chatViewModel
+                    )
                 }
             }
         }

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 interface AssignmentMemberDao {
     @Query("""
         SELECT m.* FROM members m
-        INNER JOIN assignment_members am ON m.id = am.memberId
+        INNER JOIN assignment_members am ON m.id = am.userId
         WHERE am.assignmentId = :assignmentId
     """)
     fun getMembersForAssignment(assignmentId: Long): Flow<List<Member>>

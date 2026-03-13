@@ -28,6 +28,9 @@ sealed class Screen(val route: String) {
         fun createRoute(email: String) = "reset_password/$email"
     }
     object Main : Screen("main")
+    object MainWithTab : Screen("main/{tab}") {
+        fun createRoute(tab: Int) = "main/$tab"
+    }
     object Settings : Screen("settings")
     object Schedule : Screen("schedule")
     object GroupDetail : Screen("group_detail/{groupId}") {
@@ -44,12 +47,16 @@ sealed class Screen(val route: String) {
     object AssignmentDetail : Screen("assignment_detail/{assignmentId}") {
         fun createRoute(assignmentId: Long) = "assignment_detail/$assignmentId"
     }
+    object GroupChat : Screen("group_chat/{groupId}/{groupName}") {
+        fun createRoute(groupId: Long, groupName: String) = "group_chat/$groupId/$groupName"
+    }
 }
 
 @Composable
 fun AppNavigation(
     navController: NavHostController,
-    viewModel: GroupViewModel = viewModel()
+    viewModel: GroupViewModel = viewModel(),
+    chatViewModel: com.example.myapplication.ui.viewmodel.ChatViewModel = viewModel()
 ) {
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
@@ -127,6 +134,23 @@ fun AppNavigation(
             )
         }
         
+        composable(
+            route = Screen.MainWithTab.route,
+            arguments = listOf(navArgument("tab") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getInt("tab") ?: 0
+            MainScreen(
+                navController = navController, 
+                viewModel = viewModel,
+                initialTab = tab,
+                onLogout = {
+                    navController.navigate(Screen.Auth.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+        
         composable(Screen.Settings.route) {
             val context = androidx.compose.ui.platform.LocalContext.current
             val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
@@ -146,14 +170,26 @@ fun AppNavigation(
         ) { backStackEntry ->
             val groupId = backStackEntry.arguments?.getLong("groupId") ?: 0L
             if (groupId > 0) {
+                val group = viewModel.groups.value.find { it.id == groupId }
+                val groupName = group?.name ?: "Nhóm"
+                
                 GroupDetailScreen(
                     viewModel = viewModel,
+                    chatViewModel = chatViewModel,
                     groupId = groupId,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = { 
+                        // Quay về tab Nhóm (index = 1)
+                        navController.navigate(Screen.MainWithTab.createRoute(1)) {
+                            popUpTo(Screen.Main.route) { inclusive = true }
+                        }
+                    },
                     onAddMemberClick = { navController.navigate(Screen.AddMember.createRoute(groupId)) },
                     onAddAssignmentClick = { navController.navigate(Screen.AddAssignment.createRoute(groupId)) },
                     onAssignmentClick = { assignmentId ->
                         navController.navigate(Screen.AssignmentDetail.createRoute(assignmentId))
+                    },
+                    onChatClick = {
+                        navController.navigate(Screen.GroupChat.createRoute(groupId, groupName))
                     }
                 )
             } else {
@@ -220,6 +256,41 @@ fun AppNavigation(
                 assignmentId = assignmentId,
                 onBackClick = { navController.popBackStack() }
             )
+        }
+        
+        composable(
+            route = Screen.GroupChat.route,
+            arguments = listOf(
+                navArgument("groupId") { type = NavType.LongType },
+                navArgument("groupName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getLong("groupId") ?: return@composable
+            val groupName = backStackEntry.arguments?.getString("groupName") ?: "Nhóm"
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
+            val currentUserId = userPreferences.getUserId()
+            
+            // TODO: Implement GroupChatScreen
+            androidx.compose.foundation.layout.Box(
+                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                androidx.compose.material3.Text("Chat Screen - Coming Soon")
+            }
+            
+            /*
+            GroupChatScreen(
+                viewModel = viewModel,
+                groupId = groupId,
+                groupName = groupName,
+                currentUserId = currentUserId,
+                onBackClick = { 
+                    // Quay về GroupDetail
+                    navController.popBackStack()
+                }
+            )
+            */
         }
     }
 }

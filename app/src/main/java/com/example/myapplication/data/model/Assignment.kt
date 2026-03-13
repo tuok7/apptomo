@@ -23,10 +23,16 @@ data class Assignment(
     val groupId: Long,
     val title: String,
     val description: String,
-    val dueDate: Long,
+    val dueDate: Long? = null,
     val status: AssignmentStatus = AssignmentStatus.TODO,
     val priority: Priority = Priority.MEDIUM,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdBy: Long,
+    val creatorName: String = "",
+    val maxScore: Int = 100,
+    val allowSubmission: Boolean = true,
+    val attachmentPath: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 enum class AssignmentStatus {

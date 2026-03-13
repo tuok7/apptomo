@@ -10,7 +10,8 @@ object RetrofitClient {
     // Thay đổi IP này thành IP máy tính chạy XAMPP của bạn
     // Nếu dùng emulator: 10.0.2.2
     // Nếu dùng thiết bị thật: IP máy tính trong mạng LAN (vd: 192.168.1.100)
-    private const val BASE_URL = "http://10.0.2.2/myapp_api/api/"
+    // Kiểm tra đường dẫn backend: php_backend/api/
+    private const val BASE_URL = "http://10.0.2.2/php_backend/api/"
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY

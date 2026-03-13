@@ -60,9 +60,11 @@ class ScheduleViewModel(
                                 com.example.myapplication.data.model.AssignmentStatus.IN_PROGRESS -> EventStatus.ONGOING
                                 com.example.myapplication.data.model.AssignmentStatus.COMPLETED -> EventStatus.COMPLETED
                             },
-                            date = Instant.ofEpochMilli(assignment.dueDate)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
+                            date = assignment.dueDate?.let { dueDate ->
+                                Instant.ofEpochMilli(dueDate)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDate()
+                            } ?: LocalDate.now().plusDays(1)
                         )
                     }
                     
