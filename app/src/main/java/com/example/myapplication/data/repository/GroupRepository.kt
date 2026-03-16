@@ -92,12 +92,34 @@ class GroupRepository {
         Result.failure(Exception("Network error: ${e.message}"))
     }
     
-    suspend fun addGroupMember(groupId: Long, email: String, role: String = "member") = try {
+    suspend fun addGroupMember(groupId: Long, email: String, role: String = "MEMBER") = try {
         val response = apiService.addGroupMember(AddMemberRequest(groupId, email, role))
         if (response.isSuccessful) {
             Result.success(response.body()!!)
         } else {
             Result.failure(Exception("Failed to add member: ${response.message()}"))
+        }
+    } catch (e: Exception) {
+        Result.failure(Exception("Network error: ${e.message}"))
+    }
+    
+    suspend fun updateGroupMember(userId: Long, groupId: Long, role: String) = try {
+        val response = apiService.updateGroupMember(UpdateMemberRequest(userId, groupId, role))
+        if (response.isSuccessful) {
+            Result.success(response.body()!!)
+        } else {
+            Result.failure(Exception("Failed to update member: ${response.message()}"))
+        }
+    } catch (e: Exception) {
+        Result.failure(Exception("Network error: ${e.message}"))
+    }
+    
+    suspend fun removeGroupMember(userId: Long, groupId: Long) = try {
+        val response = apiService.removeGroupMember(userId, groupId)
+        if (response.isSuccessful) {
+            Result.success(response.body()!!)
+        } else {
+            Result.failure(Exception("Failed to remove member: ${response.message()}"))
         }
     } catch (e: Exception) {
         Result.failure(Exception("Network error: ${e.message}"))

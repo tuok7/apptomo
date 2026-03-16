@@ -7,12 +7,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AssignmentMemberDao {
-    @Query("""
-        SELECT m.* FROM members m
-        INNER JOIN assignment_members am ON m.id = am.userId
-        WHERE am.assignmentId = :assignmentId
-    """)
-    fun getMembersForAssignment(assignmentId: Long): Flow<List<Member>>
+    // Không query trực tiếp từ members table vì không tồn tại
+    // Sử dụng API để lấy thông tin members
+    @Query("SELECT * FROM assignment_members WHERE assignmentId = :assignmentId")
+    fun getAssignmentMembers(assignmentId: Long): Flow<List<AssignmentMember>>
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun assignMember(assignmentMember: AssignmentMember)

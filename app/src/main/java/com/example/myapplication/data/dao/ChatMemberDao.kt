@@ -44,10 +44,8 @@ interface ChatMemberDao {
     suspend fun getMembersByRole(chatRoomId: Long, roles: List<ChatRole>): List<ChatMember>
     
     @Query("""
-        SELECT cm.* FROM chat_members cm
-        INNER JOIN members m ON cm.memberId = m.id
-        WHERE cm.chatRoomId = :chatRoomId AND cm.isActive = 1
-        AND (m.name LIKE '%' || :query || '%' OR m.email LIKE '%' || :query || '%')
+        SELECT * FROM chat_members 
+        WHERE chatRoomId = :chatRoomId AND isActive = 1
     """)
-    suspend fun searchMembers(chatRoomId: Long, query: String): List<ChatMember>
+    suspend fun searchMembers(chatRoomId: Long): List<ChatMember>
 }

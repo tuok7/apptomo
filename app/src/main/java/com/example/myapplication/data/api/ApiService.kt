@@ -45,15 +45,18 @@ interface ApiService {
     @DELETE("assignments/assignments.php")
     suspend fun deleteAssignment(@Query("id") assignmentId: Long): Response<BaseResponse>
     
-    // Member APIs
-    @GET("members/members.php")
+    // Member APIs - Updated for users + group_members structure
+    @GET("members/members_android.php")
     suspend fun getGroupMembers(@Query("groupId") groupId: Long): Response<MembersResponse>
     
-    @POST("members/members.php")
+    @POST("members/members_android.php")
     suspend fun addGroupMember(@Body request: AddMemberRequest): Response<MemberResponse>
     
-    @DELETE("members/members.php")
-    suspend fun removeGroupMember(@Query("groupId") groupId: Long, @Query("userId") userId: Long): Response<BaseResponse>
+    @PUT("members/members_android.php")
+    suspend fun updateGroupMember(@Body request: UpdateMemberRequest): Response<BaseResponse>
+    
+    @DELETE("members/members_android.php")
+    suspend fun removeGroupMember(@Query("id") userId: Long, @Query("groupId") groupId: Long): Response<BaseResponse>
     
     // Message APIs
     @GET("messages/messages.php")
@@ -237,11 +240,17 @@ data class AssignmentData(
     val createdAt: String
 )
 
-// Member Data Classes
+// Member Data Classes - Updated for users + group_members structure
 data class AddMemberRequest(
     val groupId: Long,
     val email: String,
-    val role: String = "member"
+    val role: String = "MEMBER"
+)
+
+data class UpdateMemberRequest(
+    val id: Long,
+    val groupId: Long,
+    val role: String? = null
 )
 
 data class MembersResponse(

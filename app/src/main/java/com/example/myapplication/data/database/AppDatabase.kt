@@ -11,7 +11,6 @@ import com.example.myapplication.data.model.*
 @Database(
     entities = [
         Group::class,
-        Member::class,
         Assignment::class,
         AssignmentMember::class,
         GroupMessage::class,
@@ -32,14 +31,14 @@ import com.example.myapplication.data.model.*
         LinkPreview::class,
         ScheduledMessage::class
     ],
-    version = 5, // Tăng version lên 5
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
-    // Existing DAOs
+    // Core DAOs
     abstract fun groupDao(): GroupDao
-    abstract fun memberDao(): MemberDao
+    abstract fun memberDao(): MemberDao // Keep for API compatibility
     abstract fun assignmentDao(): AssignmentDao
     abstract fun assignmentMemberDao(): AssignmentMemberDao
     abstract fun groupMessageDao(): GroupMessageDao

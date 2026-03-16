@@ -9,12 +9,6 @@ import androidx.room.PrimaryKey
     tableName = "chat_notifications",
     foreignKeys = [
         ForeignKey(
-            entity = Member::class,
-            parentColumns = ["id"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
             entity = GroupMessage::class,
             parentColumns = ["id"],
             childColumns = ["messageId"],

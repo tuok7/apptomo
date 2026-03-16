@@ -6,30 +6,13 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MemberDao {
-    @Query("SELECT * FROM members WHERE groupId = :groupId")
-    fun getMembersByGroup(groupId: Long): Flow<List<Member>>
+    // MemberDao chỉ dùng để lưu cache từ API
+    // Không có bảng members trong Room, dữ liệu lấy từ API (users + group_members)
     
-    @Query("SELECT * FROM members WHERE id = :memberId")
-    fun getMemberById(memberId: Long): Flow<Member?>
+    // Các method này sẽ được implement trong Repository layer
+    // để gọi API thay vì truy vấn database local
     
-    @Query("SELECT * FROM members WHERE groupId = :groupId AND isOnline = 1")
-    fun getOnlineMembersByGroup(groupId: Long): Flow<List<Member>>
-    
-    @Query("UPDATE members SET isOnline = :isOnline, lastActivity = :lastActivity WHERE id = :memberId")
-    suspend fun updateMemberOnlineStatus(memberId: Long, isOnline: Boolean, lastActivity: Long = System.currentTimeMillis())
-    
-    @Query("UPDATE members SET lastSeen = :lastSeen WHERE id = :memberId")
-    suspend fun updateMemberLastSeen(memberId: Long, lastSeen: Long = System.currentTimeMillis())
-    
-    @Query("UPDATE members SET isOnline = 0, lastSeen = :lastSeen WHERE id = :memberId")
-    suspend fun setMemberOffline(memberId: Long, lastSeen: Long = System.currentTimeMillis())
-    
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMember(member: Member): Long
-    
-    @Update
-    suspend fun updateMember(member: Member)
-    
-    @Delete
-    suspend fun deleteMember(member: Member)
+    // Placeholder methods - sẽ không được sử dụng trực tiếp
+    @Query("SELECT 1") // Dummy query
+    suspend fun placeholder(): Int
 }
