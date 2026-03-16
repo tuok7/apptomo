@@ -24,9 +24,9 @@ $conn = getDBConnection();
 
 // Tìm user theo email hoặc phone
 if ($isEmail) {
-    $stmt = $conn->prepare("SELECT id, full_name, email, phone, password FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id, fullName, email, phone, password FROM users WHERE email = ?");
 } else {
-    $stmt = $conn->prepare("SELECT id, full_name, email, phone, password FROM users WHERE phone = ?");
+    $stmt = $conn->prepare("SELECT id, fullName, email, phone, password FROM users WHERE phone = ?");
 }
 
 $stmt->bind_param("s", $emailOrPhone);
@@ -47,7 +47,7 @@ if (!password_verify($password, $user['password'])) {
 // Đăng nhập thành công
 $userData = [
     'id' => $user['id'],
-    'fullName' => $user['full_name'],
+    'fullName' => $user['fullName'],
     'email' => $user['email'],
     'phone' => $user['phone']
 ];

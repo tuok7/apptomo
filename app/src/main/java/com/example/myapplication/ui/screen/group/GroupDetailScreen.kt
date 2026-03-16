@@ -59,6 +59,7 @@ fun GroupDetailScreen(
     val isLoadingMessages by chatViewModel.isLoading.collectAsState()
     val isUploading by chatViewModel.isUploading.collectAsState()
     val uploadProgress by chatViewModel.uploadProgress.collectAsState()
+    val currentUser by chatViewModel.currentUser.collectAsState()
     
     var selectedTab by remember { mutableIntStateOf(0) }
     var messageText by remember { mutableStateOf("") }
@@ -233,7 +234,7 @@ fun GroupDetailScreen(
                     items(messages, key = { it.id }) { message ->
                         AdvancedMessageBubble(
                             message = message,
-                            isCurrentUser = message.senderId == chatViewModel.currentUser.value?.id,
+                            isCurrentUser = message.senderId == currentUser?.id,
                             isOnline = true, // You can implement online status tracking
                             onReply = { replyToMessage = message },
                             onEdit = { /* Handle edit */ },

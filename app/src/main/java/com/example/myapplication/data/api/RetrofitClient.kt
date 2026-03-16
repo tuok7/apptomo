@@ -7,10 +7,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    // Thay đổi IP này thành IP máy tính chạy XAMPP của bạn
+    // Cập nhật URL để kết nối với database mới
     // Nếu dùng emulator: 10.0.2.2
     // Nếu dùng thiết bị thật: IP máy tính trong mạng LAN (vd: 192.168.1.100)
-    // Kiểm tra đường dẫn backend: php_backend/api/
+    // Database: myapp_db (sử dụng android_compatible_database.sql)
     private const val BASE_URL = "http://10.0.2.2/php_backend/api/"
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {

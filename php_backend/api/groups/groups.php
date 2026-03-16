@@ -55,15 +55,15 @@ function getGroups() {
         
         $conn = getDBConnection();
         
-        $sql = "SELECT g.id, g.name, g.description, g.created_by as createdBy, 
-                u.full_name as creatorName,
-                (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as memberCount,
-                g.created_at as createdAt
+        $sql = "SELECT g.id, g.name, g.description, g.createdBy, 
+                u.fullName as creatorName,
+                (SELECT COUNT(*) FROM group_members WHERE groupId = g.id) as memberCount,
+                g.createdAt
                 FROM groups g
-                INNER JOIN group_members gm ON g.id = gm.group_id
-                INNER JOIN users u ON g.created_by = u.id
-                WHERE gm.user_id = ?
-                ORDER BY g.created_at DESC";
+                INNER JOIN group_members gm ON g.id = gm.groupId
+                INNER JOIN users u ON g.createdBy = u.id
+                WHERE gm.userId = ?
+                ORDER BY g.createdAt DESC";
         
         $stmt = $conn->prepare($sql);
         
@@ -116,23 +116,23 @@ function createGroup($data) {
     
     try {
         // Tạo nhóm
-        $stmt = $conn->prepare("INSERT INTO groups (name, description, created_by) VALUES (?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO groups (name, description, createdBy) VALUES (?, ?, ?)");
         $stmt->bind_param("ssi", $name, $description, $userId);
         $stmt->execute();
         $groupId = $conn->insert_id;
         
         // Thêm người tạo vào nhóm với role admin
-        $stmt = $conn->prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')");
+        $stmt = $conn->prepare("INSERT INTO group_members (groupId, userId, role) VALUES (?, ?, 'ADMIN')");
         $stmt->bind_param("ii", $groupId, $userId);
         $stmt->execute();
         
         $conn->commit();
         
         // Lấy thông tin nhóm vừa tạo
-        $stmt = $conn->prepare("SELECT g.id, g.name, g.description, g.created_by as createdBy, 
-                                u.full_name as creatorName, 1 as memberCount, g.created_at as createdAt
+        $stmt = $conn->prepare("SELECT g.id, g.name, g.description, g.createdBy, 
+                                u.fullName as creatorName, 1 as memberCount, g.createdAt
                                 FROM groups g
-                                INNER JOIN users u ON g.created_by = u.id
+                                INNER JOIN users u ON g.createdBy = u.id
                                 WHERE g.id = ?");
         $stmt->bind_param("i", $groupId);
         $stmt->execute();
