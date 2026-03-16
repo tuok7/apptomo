@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!isset($input['email']) || empty($input['email'])) {
-    echo json_encode(['success' => false, 'message' => 'Email là bắt buộc']);
+    echo json_encode(['success' => false, 'message' => 'Email hoặc số điện thoại là bắt buộc']);
     exit();
 }
 
@@ -36,79 +36,74 @@ if (!isset($input['newPassword']) || empty($input['newPassword'])) {
     exit();
 }
 
-$email = trim($input['email']);
+$emailOrPhone = trim($input['email']);
 $code = trim($input['code']);
 $newPassword = $input['newPassword'];
 
-// Validate email format
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    echo json_encode(['success' => false, 'message' => 'Email không hợp lệ']);
+// Kiểm tra xem là email hay số điện thoại
+$isEmail = filter_var($emailOrPhone, FILTER_VALIDATE_EMAIL);
+$isPhone = preg_match('/^[0-9]{10,11}$/', $emailOrPhone);
+
+if (!$isEmail && !$isPhone) {
+    echo json_encode(['success' => false, 'message' => 'Email hoặc số điện thoại không hợp lệ']);
     exit();
 }
 
 // Validate password length
 if (strlen($newPassword) < 6) {
-    echo json_encode(['success' => false, 'message' => 'Mật khẩu phải có ít nhất 6 ký tự']);
+    echo json_encode(['success' => false, 'message' => 'Mật khẩu mới phải có ít nhất 6 ký tự']);
     exit();
 }
 
 try {
-    // Check if user exists
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $conn = getDBConnection();
+    $currentTime = time() * 1000;
     
-    if (!$user) {
-        echo json_encode(['success' => false, 'message' => 'Email không tồn tại trong hệ thống']);
+    // Verify reset code
+    if ($isEmail) {
+        $stmt = $conn->prepare("SELECT id FROM password_reset_codes WHERE email = ? AND code = ? AND expiresAt > ? AND isUsed = 0");
+    } else {
+        $stmt = $conn->prepare("SELECT id FROM password_reset_codes WHERE phone = ? AND code = ? AND expiresAt > ? AND isUsed = 0");
+    }
+    $stmt->bind_param("ssi", $emailOrPhone, $code, $currentTime);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 0) {
+        echo json_encode(['success' => false, 'message' => 'Mã xác nhận không hợp lệ hoặc đã hết hạn']);
         exit();
     }
     
-    // Verify code
-    $stmt = $pdo->prepare("
-        SELECT id, expires_at, used 
-        FROM password_reset_codes 
-        WHERE email = ? AND code = ?
-    ");
-    $stmt->execute([$email, $code]);
-    $resetCode = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$resetCode) {
-        echo json_encode(['success' => false, 'message' => 'Mã xác nhận không đúng']);
-        exit();
-    }
-    
-    if ($resetCode['used'] == 1) {
-        echo json_encode(['success' => false, 'message' => 'Mã xác nhận đã được sử dụng']);
-        exit();
-    }
-    
-    // Check if code is expired
-    $expiresAt = strtotime($resetCode['expires_at']);
-    $now = time();
-    
-    if ($now > $expiresAt) {
-        echo json_encode(['success' => false, 'message' => 'Mã xác nhận đã hết hạn. Vui lòng yêu cầu mã mới.']);
-        exit();
-    }
-    
-    // Hash new password
-    $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-    
-    // Update user password
-    $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
-    $stmt->execute([$hashedPassword, $user['id']]);
+    $resetRecord = $result->fetch_assoc();
     
     // Mark code as used
-    $stmt = $pdo->prepare("UPDATE password_reset_codes SET used = 1 WHERE id = ?");
-    $stmt->execute([$resetCode['id']]);
+    $stmt = $conn->prepare("UPDATE password_reset_codes SET isUsed = 1 WHERE id = ?");
+    $stmt->bind_param("i", $resetRecord['id']);
+    $stmt->execute();
     
-    echo json_encode([
-        'success' => true,
-        'message' => 'Đặt lại mật khẩu thành công. Bạn có thể đăng nhập với mật khẩu mới.'
-    ]);
+    // Update user password
+    $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
     
-} catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Lỗi hệ thống. Vui lòng thử lại sau.']);
+    if ($isEmail) {
+        $stmt = $conn->prepare("UPDATE users SET password = ?, updatedAt = ? WHERE email = ?");
+    } else {
+        $stmt = $conn->prepare("UPDATE users SET password = ?, updatedAt = ? WHERE phone = ?");
+    }
+    $stmt->bind_param("sis", $hashedPassword, $currentTime, $emailOrPhone);
+    
+    if ($stmt->execute()) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Mật khẩu đã được đặt lại thành công. Bạn có thể đăng nhập với mật khẩu mới.'
+        ]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Không thể cập nhật mật khẩu']);
+    }
+    
+    $stmt->close();
+    $conn->close();
+    
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Lỗi server: ' . $e->getMessage()]);
 }
 ?>

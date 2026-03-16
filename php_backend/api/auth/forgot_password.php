@@ -38,60 +38,61 @@ if (!$isEmail && !$isPhone) {
 }
 
 try {
+    $conn = getDBConnection();
+    
     // Check if user exists
     if ($isEmail) {
-        $stmt = $pdo->prepare("SELECT id, full_name, email, phone FROM users WHERE email = ?");
+        $stmt = $conn->prepare("SELECT id, fullName, email, phone FROM users WHERE email = ?");
     } else {
-        $stmt = $pdo->prepare("SELECT id, full_name, email, phone FROM users WHERE phone = ?");
+        $stmt = $conn->prepare("SELECT id, fullName, email, phone FROM users WHERE phone = ?");
     }
-    $stmt->execute([$emailOrPhone]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->bind_param("s", $emailOrPhone);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
     
     if (!$user) {
-        $message = $isEmail ? 'Email không tồn tại trong hệ thống' : 'Số điện thoại không tồn tại trong hệ thống';
-        echo json_encode(['success' => false, 'message' => $message]);
+        echo json_encode(['success' => false, 'message' => 'Không tìm thấy tài khoản với thông tin này']);
         exit();
     }
     
-    // Generate 6-digit verification code
-    $verificationCode = sprintf("%06d", mt_rand(0, 999999));
+    // Generate 6-digit code
+    $code = sprintf('%06d', mt_rand(0, 999999));
+    $expiresAt = (time() + 900) * 1000; // 15 minutes from now in milliseconds
+    $createdAt = time() * 1000;
     
-    // Store verification code in database (expires in 15 minutes)
-    $expiresAt = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+    // Save reset code to database
+    $stmt = $conn->prepare("INSERT INTO password_reset_codes (email, phone, code, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)");
+    $email = $isEmail ? $emailOrPhone : null;
+    $phone = $isPhone ? $emailOrPhone : null;
+    $stmt->bind_param("sssii", $email, $phone, $code, $expiresAt, $createdAt);
     
-    // Check if there's already a code for this user
-    $stmt = $pdo->prepare("SELECT id FROM password_reset_codes WHERE email = ?");
-    $stmt->execute([$emailOrPhone]);
-    $existingCode = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($existingCode) {
-        // Update existing code
-        $stmt = $pdo->prepare("UPDATE password_reset_codes SET code = ?, expires_at = ?, used = 0 WHERE email = ?");
-        $stmt->execute([$verificationCode, $expiresAt, $emailOrPhone]);
+    if ($stmt->execute()) {
+        if ($isEmail) {
+            // TODO: Send email with code
+            // For now, return code in response for testing
+            echo json_encode([
+                'success' => true,
+                'message' => 'Mã xác nhận đã được gửi đến email của bạn',
+                'debug_code' => $code // Remove this in production
+            ]);
+        } else {
+            // TODO: Send SMS with code
+            // For now, return code in response for testing
+            echo json_encode([
+                'success' => true,
+                'message' => 'Mã xác nhận đã được gửi đến số điện thoại của bạn',
+                'debug_code' => $code // Remove this in production
+            ]);
+        }
     } else {
-        // Insert new code
-        $stmt = $pdo->prepare("INSERT INTO password_reset_codes (email, code, expires_at) VALUES (?, ?, ?)");
-        $stmt->execute([$emailOrPhone, $verificationCode, $expiresAt]);
+        echo json_encode(['success' => false, 'message' => 'Không thể tạo mã xác nhận']);
     }
     
-    // In production:
-    // - If email: send via email (PHPMailer)
-    // - If phone: send via SMS (Twilio, etc.)
+    $stmt->close();
+    $conn->close();
     
-    $message = $isEmail 
-        ? 'Mã xác nhận đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.'
-        : 'Mã xác nhận đã được gửi đến số điện thoại của bạn qua SMS.';
-    
-    echo json_encode([
-        'success' => true,
-        'message' => $message,
-        'type' => $isEmail ? 'email' : 'phone',
-        // For development only - remove in production
-        'debug_code' => $verificationCode
-    ]);
-    
-} catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Lỗi hệ thống. Vui lòng thử lại sau.']);
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Lỗi server: ' . $e->getMessage()]);
 }
 ?>
