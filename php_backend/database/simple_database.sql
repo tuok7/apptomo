@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS `users` (
 -- Password reset codes table
 CREATE TABLE IF NOT EXISTS `password_reset_codes` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `email` varchar(255) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
   `code` varchar(10) NOT NULL,
   `expiresAt` bigint(20) NOT NULL,
   `isUsed` tinyint(1) NOT NULL DEFAULT 0,

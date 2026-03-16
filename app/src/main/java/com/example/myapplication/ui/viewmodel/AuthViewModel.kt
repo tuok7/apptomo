@@ -53,10 +53,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun register(fullName: String, email: String, password: String) {
+    fun register(fullName: String, email: String, phone: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            val result = repository.register(fullName, email, password)
+            val result = repository.register(fullName, email, phone, password)
             _authState.value = if (result.isSuccess) {
                 val response = result.getOrNull()
                 if (response?.success == true) {

@@ -182,21 +182,21 @@ fun AuthScreen(
                     onConfirmPasswordVisibilityChange = { confirmPasswordVisible = !confirmPasswordVisible },
                     errorMessage = errorMessage,
                     isLoading = isLoading,
-                    onRegisterClick = {
+                    onRegisterClick = { phone ->
                         errorMessage = ""
-                        // Kiểm tra xem là email hay SĐT
-                        val isEmail = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
-                        val isPhone = email.matches(Regex("^[0-9]{10,11}$"))
-                        
                         when {
                             fullName.isBlank() -> errorMessage = "Vui lòng nhập họ tên"
-                            email.isBlank() -> errorMessage = "Vui lòng nhập email hoặc số điện thoại"
-                            !isEmail && !isPhone -> errorMessage = "Email hoặc số điện thoại không hợp lệ"
+                            email.isBlank() -> errorMessage = "Vui lòng nhập email"
+                            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> 
+                                errorMessage = "Email không hợp lệ"
+                            phone.isBlank() -> errorMessage = "Vui lòng nhập số điện thoại"
+                            !phone.matches(Regex("^[0-9]{10,11}$")) -> 
+                                errorMessage = "Số điện thoại không hợp lệ (10-11 số)"
                             password.isBlank() -> errorMessage = "Vui lòng nhập mật khẩu"
                             password.length < 6 -> errorMessage = "Mật khẩu phải có ít nhất 6 ký tự"
                             confirmPassword != password -> 
                                 errorMessage = "Mật khẩu xác nhận không khớp"
-                            else -> viewModel.register(fullName, email, password)
+                            else -> viewModel.register(fullName, email, phone, password)
                         }
                     },
                     onSwitchToLogin = { isLoginMode = true }
@@ -468,9 +468,11 @@ fun RegisterContent(
     onConfirmPasswordVisibilityChange: () -> Unit,
     errorMessage: String,
     isLoading: Boolean,
-    onRegisterClick: () -> Unit,
+    onRegisterClick: (String) -> Unit, // Thêm phone parameter
     onSwitchToLogin: () -> Unit
 ) {
+    var phone by remember { mutableStateOf("") }
+    
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth()
@@ -528,9 +530,9 @@ fun RegisterContent(
         
         Spacer(modifier = Modifier.height(12.dp))
         
-        // Email or Phone Field
+        // Email Field
         Text(
-            text = "Email hoặc Số điện thoại",
+            text = "Email",
             fontSize = 14.sp,
             color = Color(0xFF333333),
             modifier = Modifier
@@ -542,8 +544,29 @@ fun RegisterContent(
         ModernTextField(
             value = email,
             onValueChange = onEmailChange,
-            placeholder = "Nhập email hoặc số điện thoại",
-            keyboardType = KeyboardType.Text,
+            placeholder = "Nhập địa chỉ email",
+            keyboardType = KeyboardType.Email,
+            isDark = false
+        )
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Phone Field
+        Text(
+            text = "Số điện thoại",
+            fontSize = 14.sp,
+            color = Color(0xFF333333),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 4.dp),
+            fontWeight = FontWeight.Medium
+        )
+        
+        ModernTextField(
+            value = phone,
+            onValueChange = { phone = it },
+            placeholder = "Nhập số điện thoại (10-11 số)",
+            keyboardType = KeyboardType.Phone,
             isDark = false
         )
         
@@ -607,7 +630,7 @@ fun RegisterContent(
         
         // Register Button
         Button(
-            onClick = onRegisterClick,
+            onClick = { onRegisterClick(phone) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),

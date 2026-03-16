@@ -39,7 +39,7 @@ class AuthRepository {
         Result.failure(Exception("Lỗi kết nối: ${e.message}"))
     }
     
-    suspend fun register(fullName: String, email: String, password: String) = try {
+    suspend fun register(fullName: String, email: String, phone: String, password: String) = try {
         if (useMockData) {
             delay(500)
             
@@ -51,7 +51,7 @@ class AuthRepository {
                     id = mockUsers.size + 1L,
                     fullName = fullName,
                     email = email,
-                    phone = null
+                    phone = phone
                 )
                 mockUsers.add(newUser)
                 
@@ -62,7 +62,7 @@ class AuthRepository {
                 ))
             }
         } else {
-            val response = apiService.register(RegisterRequest(fullName, email, password))
+            val response = apiService.register(RegisterRequest(fullName, email, phone, password))
             if (response.isSuccessful) {
                 Result.success(response.body()!!)
             } else {
