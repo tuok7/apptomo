@@ -21,41 +21,25 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.myapplication.ui.viewmodel.AuthViewModel
-import com.example.myapplication.ui.viewmodel.ResetPasswordState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResetPasswordScreen(
     email: String,
     onBackToLogin: () -> Unit,
-    onResetSuccess: () -> Unit,
-    viewModel: AuthViewModel = viewModel()
+    onResetSuccess: () -> Unit
 ) {
+    val authRepository = remember { com.example.myapplication.data.repository.AuthRepository() }
+    val coroutineScope = rememberCoroutineScope()
+    
     var verificationCode by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
-    
-    val resetPasswordState by viewModel.resetPasswordState.collectAsState()
-    
-    LaunchedEffect(resetPasswordState) {
-        when (resetPasswordState) {
-            is ResetPasswordState.Success -> {
-                onResetSuccess()
-                viewModel.resetForgotPasswordState()
-            }
-            is ResetPasswordState.Error -> {
-                errorMessage = (resetPasswordState as ResetPasswordState.Error).message
-            }
-            else -> {}
-        }
-    }
-    
-    val isLoading = resetPasswordState is ResetPasswordState.Loading
+    var isLoading by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -326,7 +310,30 @@ fun ResetPasswordScreen(
                         newPassword.isBlank() -> errorMessage = "Vui lòng nhập mật khẩu mới"
                         newPassword.length < 6 -> errorMessage = "Mật khẩu phải có ít nhất 6 ký tự"
                         confirmPassword != newPassword -> errorMessage = "Mật khẩu xác nhận không khớp"
-                        else -> viewModel.resetPassword(email, verificationCode, newPassword)
+                        else -> {
+                            isLoading = true
+                            coroutineScope.launch {
+                                try {
+                                    val result = authRepository.resetPassword(email, verificationCode, newPassword)
+                                    result.fold(
+                                        onSuccess = { response ->
+                                            if (response.success) {
+                                                onResetSuccess()
+                                            } else {
+                                                errorMessage = response.message
+                                            }
+                                        },
+                                        onFailure = { exception ->
+                                            errorMessage = exception.message ?: "Đặt lại mật khẩu thất bại"
+                                        }
+                                    )
+                                } catch (e: Exception) {
+                                    errorMessage = "Lỗi kết nối: ${e.message}"
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        }
                     }
                 },
                 modifier = Modifier
@@ -358,7 +365,11 @@ fun ResetPasswordScreen(
             
             // Resend Code
             TextButton(
-                onClick = { viewModel.forgotPassword(email) }
+                onClick = { 
+                    coroutineScope.launch {
+                        authRepository.forgotPassword(email)
+                    }
+                }
             ) {
                 Text(
                     text = "Gửi lại mã xác nhận",

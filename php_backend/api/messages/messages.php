@@ -49,17 +49,17 @@ function getMessages($conn) {
     $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
     
     $sql = "SELECT 
-                gc.id,
-                gc.group_id,
-                gc.user_id,
-                gc.message,
-                gc.created_at,
-                u.full_name as sender_name,
+                gm.id,
+                gm.groupId,
+                gm.senderId as userId,
+                gm.content as message,
+                gm.timestamp as createdAt,
+                gm.senderName as sender_name,
                 u.email as sender_email
-            FROM group_chat gc
-            INNER JOIN users u ON gc.user_id = u.id
-            WHERE gc.group_id = ?
-            ORDER BY gc.created_at DESC
+            FROM group_messages gm
+            INNER JOIN users u ON gm.senderId = u.id
+            WHERE gm.groupId = ?
+            ORDER BY gm.timestamp DESC
             LIMIT ? OFFSET ?";
     
     $stmt = $conn->prepare($sql);
@@ -71,12 +71,12 @@ function getMessages($conn) {
     while ($row = $result->fetch_assoc()) {
         $messages[] = [
             'id' => (int)$row['id'],
-            'groupId' => (int)$row['group_id'],
-            'userId' => (int)$row['user_id'],
+            'groupId' => (int)$row['groupId'],
+            'userId' => (int)$row['userId'],
             'message' => $row['message'],
             'senderName' => $row['sender_name'],
             'senderEmail' => $row['sender_email'],
-            'createdAt' => $row['created_at']
+            'createdAt' => $row['createdAt']
         ];
     }
     
@@ -111,7 +111,7 @@ function sendMessage($conn) {
     }
     
     // Kiểm tra user có trong nhóm không
-    $checkSql = "SELECT id FROM group_members WHERE group_id = ? AND user_id = ?";
+    $checkSql = "SELECT id FROM group_members WHERE groupId = ? AND userId = ?";
     $checkStmt = $conn->prepare($checkSql);
     $checkStmt->bind_param("ii", $groupId, $userId);
     $checkStmt->execute();
@@ -123,10 +123,20 @@ function sendMessage($conn) {
         return;
     }
     
+    // Lấy tên user
+    $userSql = "SELECT fullName FROM users WHERE id = ?";
+    $userStmt = $conn->prepare($userSql);
+    $userStmt->bind_param("i", $userId);
+    $userStmt->execute();
+    $userResult = $userStmt->get_result();
+    $user = $userResult->fetch_assoc();
+    $senderName = $user['fullName'];
+    
     // Thêm tin nhắn
-    $sql = "INSERT INTO group_chat (group_id, user_id, message) VALUES (?, ?, ?)";
+    $currentTime = time() * 1000; // Current timestamp in milliseconds
+    $sql = "INSERT INTO group_messages (groupId, senderId, senderName, content, timestamp) VALUES (?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("iis", $groupId, $userId, $message);
+    $stmt->bind_param("iissi", $groupId, $userId, $senderName, $message, $currentTime);
     
     if ($stmt->execute()) {
         $messageId = $conn->insert_id;

@@ -73,16 +73,16 @@ try {
             // For now, return code in response for testing
             echo json_encode([
                 'success' => true,
-                'message' => 'Mã xác nhận đã được gửi đến email của bạn',
-                'debug_code' => $code // Remove this in production
+                'message' => 'Mã xác nhận đã được gửi đến email của bạn. Mã xác nhận: ' . $code,
+                'debug_code' => $code // For testing - remove in production
             ]);
         } else {
             // TODO: Send SMS with code
             // For now, return code in response for testing
             echo json_encode([
                 'success' => true,
-                'message' => 'Mã xác nhận đã được gửi đến số điện thoại của bạn',
-                'debug_code' => $code // Remove this in production
+                'message' => 'Mã xác nhận đã được gửi đến số điện thoại của bạn. Mã xác nhận: ' . $code,
+                'debug_code' => $code // For testing - remove in production
             ]);
         }
     } else {

@@ -7,6 +7,7 @@
 class Database {
     // Database credentials - cập nhật theo cấu hình XAMPP của bạn
     private $host = "localhost";
+    private $port = 3307;           // Port MySQL XAMPP (3307)
     private $db_name = "myapp_db";  // Tên database đã tạo
     private $username = "root";     // Username MySQL (mặc định XAMPP)
     private $password = "";         // Password MySQL (mặc định XAMPP để trống)
@@ -21,7 +22,7 @@ class Database {
         $this->conn = null;
         
         try {
-            $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=" . $this->charset;
+            $dsn = "mysql:host=" . $this->host . ";port=" . $this->port . ";dbname=" . $this->db_name . ";charset=" . $this->charset;
             $options = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

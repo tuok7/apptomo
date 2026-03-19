@@ -19,38 +19,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.myapplication.ui.viewmodel.AuthViewModel
-import com.example.myapplication.ui.viewmodel.ForgotPasswordState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForgotPasswordScreen(
     onBackToLogin: () -> Unit,
-    onNavigateToReset: (String) -> Unit,
-    viewModel: AuthViewModel = viewModel()
+    onNavigateToReset: (String) -> Unit
 ) {
+    val authRepository = remember { com.example.myapplication.data.repository.AuthRepository() }
+    val coroutineScope = rememberCoroutineScope()
+    
     var email by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
     var successMessage by remember { mutableStateOf("") }
-    
-    val forgotPasswordState by viewModel.forgotPasswordState.collectAsState()
-    
-    LaunchedEffect(forgotPasswordState) {
-        when (forgotPasswordState) {
-            is ForgotPasswordState.Success -> {
-                successMessage = (forgotPasswordState as ForgotPasswordState.Success).message
-                errorMessage = ""
-            }
-            is ForgotPasswordState.Error -> {
-                errorMessage = (forgotPasswordState as ForgotPasswordState.Error).message
-                successMessage = ""
-            }
-            else -> {}
-        }
-    }
-    
-    val isLoading = forgotPasswordState is ForgotPasswordState.Loading
+    var isLoading by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -255,7 +238,34 @@ fun ForgotPasswordScreen(
                     successMessage = ""
                     when {
                         email.isBlank() -> errorMessage = "Vui lòng nhập email hoặc số điện thoại"
-                        else -> viewModel.forgotPassword(email)
+                        else -> {
+                            isLoading = true
+                            coroutineScope.launch {
+                                try {
+                                    val result = authRepository.forgotPassword(email)
+                                    result.fold(
+                                        onSuccess = { response ->
+                                            if (response.success) {
+                                                successMessage = response.message
+                                                errorMessage = ""
+                                            } else {
+                                                errorMessage = response.message
+                                                successMessage = ""
+                                            }
+                                        },
+                                        onFailure = { exception ->
+                                            errorMessage = exception.message ?: "Gửi mã xác nhận thất bại"
+                                            successMessage = ""
+                                        }
+                                    )
+                                } catch (e: Exception) {
+                                    errorMessage = "Lỗi kết nối: ${e.message}"
+                                    successMessage = ""
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        }
                     }
                 },
                 modifier = Modifier

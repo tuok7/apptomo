@@ -5,7 +5,7 @@ import kotlinx.coroutines.delay
 
 class AuthRepository {
     // Mock mode - không cần backend
-    private val useMockData = false  // ĐỔI THÀNH FALSE ĐỂ DÙNG API THẬT
+    private val useMockData = false  // SỬ DỤNG API THẬT VỚI DATABASE MYSQL
     private val apiService = RetrofitClient.apiService
     
     // Mock users database

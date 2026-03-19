@@ -13,9 +13,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.viewmodel.GroupViewModel
-import com.example.myapplication.ui.screen.home.*
-import com.example.myapplication.ui.screen.group.*
-import com.example.myapplication.ui.screen.account.*
+import com.example.myapplication.ui.screen.home.HomeScreen
+import com.example.myapplication.ui.screen.group.GroupListScreen
+import com.example.myapplication.ui.screen.schedule.ScheduleScreen
+import com.example.myapplication.ui.screen.settings.SettingsScreen
 
 sealed class BottomNavItem(
     val route: String,
@@ -93,13 +94,11 @@ fun MainScreen(
                         navController.navigate("join_group")
                     }
                 )
-                2 -> com.example.myapplication.ui.screen.schedule.ScheduleScreen(
-                    navController = navController
-                )
+                2 -> ScheduleScreen(navController = navController)
                 3 -> {
                     val context = androidx.compose.ui.platform.LocalContext.current
                     val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
-                    com.example.myapplication.ui.screen.settings.SettingsScreen(
+                    SettingsScreen(
                         navController = navController,
                         userPreferences = userPreferences
                     )

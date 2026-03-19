@@ -33,15 +33,15 @@ function handleGetAssignments($conn) {
         sendResponse(false, 'Group ID is required');
     }
     
-    $sql = "SELECT a.*, u.full_name as creator_name,
-                   GROUP_CONCAT(DISTINCT CONCAT(u2.id, ':', u2.full_name) SEPARATOR '|') as assigned_members
+    $sql = "SELECT a.*, u.fullName as creator_name,
+                   GROUP_CONCAT(DISTINCT CONCAT(u2.id, ':', u2.fullName) SEPARATOR '|') as assigned_members
             FROM assignments a 
-            JOIN users u ON a.created_by = u.id
-            LEFT JOIN assignment_members am ON a.id = am.assignment_id
-            LEFT JOIN users u2 ON am.user_id = u2.id
-            WHERE a.group_id = ? 
+            JOIN users u ON a.createdBy = u.id
+            LEFT JOIN assignment_members am ON a.id = am.assignmentId
+            LEFT JOIN users u2 ON am.memberId = u2.id
+            WHERE a.groupId = ? 
             GROUP BY a.id
-            ORDER BY a.created_at DESC";
+            ORDER BY a.createdAt DESC";
     
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $groupId);
@@ -66,16 +66,16 @@ function handleGetAssignments($conn) {
         
         $assignments[] = [
             'id' => (int)$row['id'],
-            'groupId' => (int)$row['group_id'],
+            'groupId' => (int)$row['groupId'],
             'title' => $row['title'],
             'description' => $row['description'],
-            'dueDate' => $row['due_date'],
+            'dueDate' => $row['dueDate'],
             'status' => $row['status'],
             'priority' => $row['priority'],
-            'createdBy' => (int)$row['created_by'],
+            'createdBy' => (int)$row['createdBy'],
             'creatorName' => $row['creator_name'],
             'assignedMembers' => $assignedMembers,
-            'createdAt' => $row['created_at']
+            'createdAt' => $row['createdAt']
         ];
     }
     
@@ -104,7 +104,7 @@ function handleCreateAssignment($conn) {
     
     // Convert timestamp to MySQL datetime if provided
     if ($dueDate) {
-        $dueDate = date('Y-m-d H:i:s', $dueDate / 1000); // Convert from milliseconds
+        $dueDate = $dueDate; // Keep as timestamp for database
     }
     
     // Start transaction
@@ -112,17 +112,18 @@ function handleCreateAssignment($conn) {
     
     try {
         // Create assignment
-        $stmt = $conn->prepare("INSERT INTO assignments (group_id, title, description, due_date, priority, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->bind_param("issssi", $groupId, $title, $description, $dueDate, $priority, $createdBy);
+        $stmt = $conn->prepare("INSERT INTO assignments (groupId, title, description, dueDate, priority, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $currentTime = time() * 1000; // Current timestamp in milliseconds
+        $stmt->bind_param("issiiii", $groupId, $title, $description, $dueDate, $priority, $createdBy, $currentTime);
         $stmt->execute();
         
         $assignmentId = $conn->insert_id;
         
         // Assign members if provided
         if (!empty($assignedMembers)) {
-            $stmt = $conn->prepare("INSERT INTO assignment_members (assignment_id, user_id, status, assigned_at) VALUES (?, ?, 'assigned', NOW())");
+            $stmt = $conn->prepare("INSERT INTO assignment_members (assignmentId, memberId, status, assignedAt) VALUES (?, ?, 'TODO', ?)");
             foreach ($assignedMembers as $memberId) {
-                $stmt->bind_param("ii", $assignmentId, $memberId);
+                $stmt->bind_param("iii", $assignmentId, $memberId, $currentTime);
                 $stmt->execute();
             }
         }
@@ -130,7 +131,7 @@ function handleCreateAssignment($conn) {
         $conn->commit();
         
         // Get created assignment info
-        $stmt = $conn->prepare("SELECT a.*, u.full_name as creator_name FROM assignments a JOIN users u ON a.created_by = u.id WHERE a.id = ?");
+        $stmt = $conn->prepare("SELECT a.*, u.fullName as creator_name FROM assignments a JOIN users u ON a.createdBy = u.id WHERE a.id = ?");
         $stmt->bind_param("i", $assignmentId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -138,15 +139,15 @@ function handleCreateAssignment($conn) {
         
         $assignmentData = [
             'id' => (int)$assignment['id'],
-            'groupId' => (int)$assignment['group_id'],
+            'groupId' => (int)$assignment['groupId'],
             'title' => $assignment['title'],
             'description' => $assignment['description'],
-            'dueDate' => $assignment['due_date'],
+            'dueDate' => $assignment['dueDate'],
             'status' => $assignment['status'],
             'priority' => $assignment['priority'],
-            'createdBy' => (int)$assignment['created_by'],
+            'createdBy' => (int)$assignment['createdBy'],
             'creatorName' => $assignment['creator_name'],
-            'createdAt' => $assignment['created_at']
+            'createdAt' => $assignment['createdAt']
         ];
         
         sendResponse(true, 'Assignment created successfully', $assignmentData);

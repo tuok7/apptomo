@@ -2,6 +2,7 @@
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
@@ -13,64 +14,52 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.myapplication.data.preferences.UserPreferences
-import com.example.myapplication.ui.viewmodel.AuthState
-import com.example.myapplication.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun SplashScreen(
     onSplashFinished: () -> Unit,
     onAutoLoginSuccess: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val userPreferences = remember { UserPreferences(context) }
-    val viewModel: AuthViewModel = viewModel()
-    val authState by viewModel.authState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val userPreferences = remember { com.example.myapplication.data.preferences.UserPreferences(context) }
     
     val scale = remember { Animatable(0f) }
     val alpha = remember { Animatable(0f) }
-    var isCheckingLogin by remember { mutableStateOf(true) }
-    
-    // Xử lý kết quả đăng nhập tự động
-    LaunchedEffect(authState) {
-        when (authState) {
-            is AuthState.Success -> {
-                onAutoLoginSuccess()
-            }
-            is AuthState.Error -> {
-                // Nếu đăng nhập tự động thất bại, chuyển sang màn hình đăng nhập
-                onSplashFinished()
-            }
-            else -> {}
-        }
-    }
+    var isAnimationComplete by remember { mutableStateOf(false) }
     
     LaunchedEffect(Unit) {
         // Animation
-        scale.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
+        launch {
+            scale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
             )
-        )
-        alpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(1000)
-        )
+        }
         
-        delay(1500)
+        launch {
+            alpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(1000)
+            )
+            isAnimationComplete = true
+        }
         
-        // Luôn chuyển sang màn hình đăng nhập
-        // Không tự động đăng nhập, chỉ điền sẵn thông tin
-        onSplashFinished()
-        isCheckingLogin = false
+        delay(2500) // Hiển thị splash trong 2.5 giây
+        
+        // Kiểm tra auto-login
+        if (userPreferences.isLoggedIn() && userPreferences.isRememberLogin()) {
+            onAutoLoginSuccess()
+        } else {
+            onSplashFinished()
+        }
     }
     
     Box(
@@ -79,19 +68,24 @@ fun SplashScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1E88E5),
-                        Color(0xFF7E57C2)
+                        Color(0xFF667eea),
+                        Color(0xFF764ba2)
                     )
                 )
             ),
         contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clickable(enabled = isAnimationComplete) {
+                    onSplashFinished()
+                }
+                .padding(32.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Group,
-                contentDescription = null,
+                contentDescription = "Tomo Logo",
                 modifier = Modifier
                     .size(120.dp)
                     .scale(scale.value),
@@ -101,28 +95,30 @@ fun SplashScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "Tomo",
+                text = "TOMO",
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                modifier = Modifier.scale(scale.value)
+                modifier = Modifier.scale(alpha.value)
             )
             
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "Bài tập nhóm",
+                text = "Bài tập nhóm thông minh",
                 fontSize = 18.sp,
                 color = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.scale(scale.value)
+                modifier = Modifier.scale(alpha.value)
             )
             
-            if (isCheckingLogin) {
+            if (isAnimationComplete) {
                 Spacer(modifier = Modifier.height(32.dp))
+                
                 Text(
-                    text = "Đang khởi động...",
+                    text = "Nhấn để tiếp tục",
                     fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.scale(alpha.value)
                 )
             }
         }
